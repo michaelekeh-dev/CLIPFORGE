@@ -9,7 +9,12 @@
     <p class="muted small">{% if project.channel %}{{ project.channel }} · {% endif %}<span id="pmeta"></span></p>
   </div>
   <div class="head-actions">
+    <a class="btn primary small" id="zipBtn" href="/api/projects/{{ project.id }}/download.zip">Download all (ZIP)</a>
     <button class="btn danger small" id="deleteBtn">Delete</button>
+  </div>
+  <div class="credit-row span2">
+    <label class="muted small">Source credit shown for 3s: <input class="input" id="creditName" value="{{ project.options.credit_name if project.options.credit_name is not none else project.channel }}" placeholder="@ChannelName" maxlength="60"></label>
+    <button class="btn secondary small" id="creditSave">Save</button>
   </div>
 </section>
 
@@ -40,4 +45,4 @@
 
 <div id="modal" class="modal hidden"><div class="modal-card"><button class="close" id="modalClose">✕</button><div id="modalBody"></div></div></div>
 {% endblock %}
-{% block scripts %}<script>window.CF_PRESETS = {{ presets|tojson }}; CF.project({{ project.id|tojson }});</script>{% endblock %}
+{% block scripts %}<script>window.CF_PRESETS = {{ presets|tojson }}; window.CF_TEMPLATES = {{ templates_|map(attribute='name')|list|tojson }}; window.CF_TEMPLATE_IDS = {{ templates_|map(attribute='id')|list|tojson }}; CF.project({{ project.id|tojson }});</script>{% endblock %}

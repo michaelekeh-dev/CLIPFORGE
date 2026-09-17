@@ -77,6 +77,8 @@ const CF = (() => {
           <div class="tools">
             <select class="input style-select" title="Caption style">${styleOptions(c.settings.style || 'auto')}</select>
             <select class="input layout-select" title="Framing">${['auto','single','split','wide'].map(l => `<option value="${l}" ${(c.settings.layout || 'auto') === l ? 'selected' : ''}>${{auto:'Auto framing', single:'One person', split:'Two people', wide:'Whole picture'}[l]}</option>`).join('')}</select>
+            <select class="input ratio-select" title="Shape">${['9:16','1:1','16:9'].map(r => `<option value="${r}" ${(c.settings.ratio || '9:16') === r ? 'selected' : ''}>${{'9:16':'Vertical 9:16','1:1':'Square 1:1','16:9':'Wide 16:9'}[r]}</option>`).join('')}</select>
+            <select class="input template-select" title="Brand template">${(window.CF_TEMPLATE_IDS || []).map((id, i) => `<option value="${id}" ${(c.settings.template || '') === id || (!c.settings.template && i === 0) ? 'selected' : ''}>${esc(window.CF_TEMPLATES[i])}</option>`).join('')}</select>
             <select class="input filler-select" title="Filler removal">${['off','light','aggressive'].map(l => `<option value="${l}" ${(c.settings.filler || 'light') === l ? 'selected' : ''}>${{off:'Keep pauses', light:'Trim pauses: light', aggressive:'Trim pauses: aggressive'}[l]}</option>`).join('')}</select>
           </div>
           <div class="tools">
@@ -89,6 +91,7 @@ const CF = (() => {
           <div class="actions">
             <a class="btn primary small" href="${c.download_url}" ${c.status === 'done' ? '' : 'aria-disabled="true" style="opacity:.5;pointer-events:none"'}>Download</a>
             <button class="btn secondary small copy">Copy title + tags</button>
+            ${c.thumbnail_url ? `<a class="btn secondary small" href="${c.thumbnail_url}" title="Thumbnail">🖼</a>` : ''}
           </div>
         </div>
       </article>`;
@@ -101,7 +104,8 @@ const CF = (() => {
           await api(`/api/clips/${c.id}/settings`, { method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ style: $('.style-select', el).value, layout: $('.layout-select', el).value, emoji: $('.emoji-check', el).checked,
               filler: $('.filler-select', el).value, hook: $('.hook-check', el).checked, zooms: $('.zooms-check', el).checked,
-              progress_bar: $('.bar-check', el).checked, hook_text: $('.hook-text', el).value.trim(), render: true }) });
+              progress_bar: $('.bar-check', el).checked, hook_text: $('.hook-text', el).value.trim(),
+              ratio: $('.ratio-select', el).value, template: $('.template-select', el).value, render: true }) });
           toast('Rendering again…'); poll();
         };
         $('.copy', el).onclick = () => copy(`${c.title}\n\n${c.description}\n\n${(c.hashtags || []).join(' ')}`);
@@ -124,6 +128,7 @@ const CF = (() => {
     };
     $('#modalClose').onclick = () => $('#modal').classList.add('hidden');
     $('#modal').onclick = (e) => { if (e.target.id === 'modal') $('#modal').classList.add('hidden'); };
+    const cs = $('#creditSave'); if (cs) cs.onclick = async () => { await api(`/api/projects/${pid}/settings`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ credit_name: $('#creditName').value }) }); toast('Saved. Re-render a clip to apply.'); };
     $('#retryBtn').onclick = () => api(`/api/projects/${pid}/retry`, { method: 'POST' }).then(poll);
     $('#deleteBtn').onclick = async () => { if (!confirm('Delete this project and its clips?')) return; await api(`/api/projects/${pid}`, { method: 'DELETE' }); location.href = '/'; };
     let timer;
@@ -135,5 +140,15 @@ const CF = (() => {
     };
     poll();
   }
-  return { home, project, toast, api, copy, esc, fmt };
+  function templates() {
+    document.querySelectorAll('.tcard').forEach(card => {
+      const id = card.dataset.id;
+      const edit = $('.edit-btn', card), form = $('.tform', card);
+      if (edit) edit.onclick = () => { form.classList.toggle('hidden'); };
+      const cancel = $('.cancel-btn', card); if (cancel) cancel.onclick = () => form.classList.add('hidden');
+      const md = $('.make-default', card); if (md) md.onclick = async () => { await api(`/api/templates/${id}/default`, { method: 'POST' }); location.reload(); };
+      const del = $('.del-btn', card); if (del) del.onclick = async () => { if (!confirm('Delete this template?')) return; await api(`/api/templates/${id}`, { method: 'DELETE' }); location.reload(); };
+    });
+  }
+  return { home, project, templates, toast, api, copy, esc, fmt };
 })();

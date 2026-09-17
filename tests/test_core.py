@@ -175,3 +175,37 @@ def test_zoom_windows_avoid_cuts():
         assert not (s_src < 15 < e_src)  # never across the cut
     fn = effects.ZoomFn(z)
     assert fn(z[0]["peak_s"] + 0.1) == 1.12 and fn(z[0]["e"] + 0.5) == 1.0
+
+
+def test_timeline_lead_in_out_shift_everything():
+    tl = Timeline.single(10, 20)
+    tl.lead_in, tl.lead_out = 0.8, 1.6
+    assert abs(tl.duration - 12.4) < 1e-9 and abs(tl.speech_duration - 10) < 1e-9
+    assert tl.to_output(10) == 0.8 and tl.to_output(15) == 5.8
+    assert tl.to_source(0.3) == 10 and abs(tl.to_source(5.8) - 15) < 1e-9
+    tl2 = tl.remove([(12, 13)])
+    assert tl2.lead_in == 0.8 and tl2.to_output(14) == 0.8 + 3
+
+
+def test_brand_templates_roundtrip():
+    from clipforge import brand
+    t = brand.ensure_default()
+    assert t["is_default"] == 1
+    tid = brand.save(None, "Test", {"watermark_text": "@x", "accent": "#123456", "intro_card": "on", "outro_card": False}, make_default=True)
+    got = brand.get(tid)
+    assert got["data"]["watermark_text"] == "@x" and got["data"]["accent"] == "#123456" and got["data"]["intro_card"] is True
+    assert brand.get(None)["id"] == tid  # default switched
+    brand.delete(tid)
+    assert brand.get(None)["id"] != tid
+
+
+def test_hook_and_brand_overlays_shift_with_offset():
+    from clipforge import effects
+    style, ev = effects.hook_ass("Six honest words for the top", 1080, 1920, 3.0, offset=0.8)
+    assert "0:00:00.80,0:00:03.80" in ev[0]
+    ov = effects.brand_overlays({"data": {"watermark_text": "@a", "credit": True}}, 1080, 1920, 30, "Some Channel", offset=0.8)
+    credit = ov[-1]
+    assert abs(credit.s - 1.0) < 1e-9 and abs(credit.e - 4.0) < 1e-9
+    frame = np.zeros((1920, 1080, 3), dtype=np.uint8)
+    out = ov[0](frame, 0, 5.0)
+    assert out.max() > 0  # watermark drawn

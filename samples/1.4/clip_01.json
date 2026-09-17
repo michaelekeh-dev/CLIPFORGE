@@ -1,0 +1,905 @@
+{
+  "id": "c_94e346d3d2e6",
+  "project": "p_9190e31a0dfe",
+  "index": 1,
+  "source": "/home/user/CLIPFORGE/data/projects/p_9190e31a0dfe/source.mp4",
+  "title": "The real world is actually very messy",
+  "start": 42.3,
+  "end": 76.97,
+  "duration": 37.07,
+  "timeline": [
+    [
+      42.3,
+      76.97
+    ]
+  ],
+  "score": 99,
+  "settings": {
+    "ratio": "9:16",
+    "layout": "auto",
+    "style": "auto",
+    "emoji": true,
+    "filler": "light",
+    "hook": true,
+    "zooms": true,
+    "progress_bar": true,
+    "template": ""
+  },
+  "render": {
+    "frames": 890,
+    "fps": 23.976,
+    "width": 1080,
+    "height": 1920,
+    "duration": 37.07,
+    "loudness": {
+      "input_i": "-24.41",
+      "input_tp": "-8.39",
+      "input_lra": "2.50",
+      "input_thresh": "-34.72",
+      "output_i": "-14.11",
+      "output_tp": "-1.50",
+      "output_lra": "2.20",
+      "output_thresh": "-24.38",
+      "normalization_type": "dynamic",
+      "target_offset": "0.11"
+    },
+    "template": {
+      "id": "t_d5e8d535e33b",
+      "name": "TheTruthUntold",
+      "credit": "@GoogleDevelopers"
+    },
+    "captions": {
+      "style": "bold_pop",
+      "words": 100,
+      "emojis": [
+        "🌍",
+        "🤖"
+      ],
+      "lines": 100
+    },
+    "filler": {
+      "level": "light",
+      "cuts": [],
+      "removed_seconds": 0
+    },
+    "zooms": [
+      {
+        "s": 14.65,
+        "peak_s": 15.0,
+        "peak_e": 16.1,
+        "e": 16.6,
+        "amount": 1.12,
+        "src": 57.1
+      }
+    ],
+    "hook": {
+      "on": true,
+      "text": "The real world is actually very messy"
+    },
+    "reframe": {
+      "layout_setting": "auto",
+      "shots": [
+        {
+          "start": 42.3,
+          "end": 44.586,
+          "layout": "wide",
+          "faces": 0,
+          "speakers": [],
+          "confidence": 0
+        },
+        {
+          "start": 44.586,
+          "end": 46.38,
+          "layout": "wide",
+          "faces": 0,
+          "speakers": [],
+          "confidence": 0
+        },
+        {
+          "start": 46.38,
+          "end": 49.925,
+          "layout": "wide",
+          "faces": 0,
+          "speakers": [],
+          "confidence": 0
+        },
+        {
+          "start": 49.925,
+          "end": 52.678,
+          "layout": "single",
+          "faces": 1,
+          "speakers": [
+            [
+              49.925,
+              52.678,
+              0
+            ]
+          ],
+          "confidence": 1.0
+        },
+        {
+          "start": 52.678,
+          "end": 54.304,
+          "layout": "wide",
+          "faces": 0,
+          "speakers": [],
+          "confidence": 0
+        },
+        {
+          "start": 54.304,
+          "end": 55.013,
+          "layout": "wide",
+          "faces": 0,
+          "speakers": [],
+          "confidence": 0
+        },
+        {
+          "start": 55.013,
+          "end": 59.601,
+          "layout": "single",
+          "faces": 1,
+          "speakers": [
+            [
+              55.013,
+              59.601,
+              0
+            ]
+          ],
+          "confidence": 1.0
+        },
+        {
+          "start": 59.601,
+          "end": 61.27,
+          "layout": "single",
+          "faces": 1,
+          "speakers": [
+            [
+              59.601,
+              61.27,
+              0
+            ]
+          ],
+          "confidence": 1.0
+        },
+        {
+          "start": 61.27,
+          "end": 62.646,
+          "layout": "wide",
+          "faces": 0,
+          "speakers": [],
+          "confidence": 0
+        },
+        {
+          "start": 62.646,
+          "end": 63.522,
+          "layout": "wide",
+          "faces": 0,
+          "speakers": [],
+          "confidence": 0
+        },
+        {
+          "start": 63.522,
+          "end": 64.439,
+          "layout": "wide",
+          "faces": 0,
+          "speakers": [],
+          "confidence": 0
+        },
+        {
+          "start": 64.439,
+          "end": 65.607,
+          "layout": "wide",
+          "faces": 0,
+          "speakers": [],
+          "confidence": 0
+        },
+        {
+          "start": 65.607,
+          "end": 67.776,
+          "layout": "single",
+          "faces": 1,
+          "speakers": [
+            [
+              65.607,
+              67.776,
+              0
+            ]
+          ],
+          "confidence": 1.0
+        },
+        {
+          "start": 67.776,
+          "end": 69.236,
+          "layout": "single",
+          "faces": 1,
+          "speakers": [
+            [
+              67.776,
+              69.236,
+              0
+            ]
+          ],
+          "confidence": 1.0
+        },
+        {
+          "start": 69.236,
+          "end": 72.03,
+          "layout": "wide",
+          "faces": 0,
+          "speakers": [],
+          "confidence": 0
+        },
+        {
+          "start": 72.03,
+          "end": 73.448,
+          "layout": "wide",
+          "faces": 0,
+          "speakers": [],
+          "confidence": 0
+        },
+        {
+          "start": 73.448,
+          "end": 76.97,
+          "layout": "wide",
+          "faces": 0,
+          "speakers": [],
+          "confidence": 0
+        }
+      ],
+      "keyframes": [
+        [
+          0.79,
+          "wide",
+          null
+        ],
+        [
+          1.29,
+          "wide",
+          null
+        ],
+        [
+          1.79,
+          "wide",
+          null
+        ],
+        [
+          2.29,
+          "wide",
+          null
+        ],
+        [
+          2.79,
+          "wide",
+          null
+        ],
+        [
+          3.29,
+          "wide",
+          null
+        ],
+        [
+          3.8,
+          "wide",
+          null
+        ],
+        [
+          4.3,
+          "wide",
+          null
+        ],
+        [
+          4.8,
+          "wide",
+          null
+        ],
+        [
+          5.3,
+          "wide",
+          null
+        ],
+        [
+          5.8,
+          "wide",
+          null
+        ],
+        [
+          6.3,
+          "wide",
+          null
+        ],
+        [
+          6.8,
+          "wide",
+          null
+        ],
+        [
+          7.3,
+          "wide",
+          null
+        ],
+        [
+          7.8,
+          "wide",
+          null
+        ],
+        [
+          8.3,
+          "wide",
+          null
+        ],
+        [
+          8.8,
+          "single",
+          [
+            [
+              686.7,
+              360.0
+            ],
+            [
+              405.0,
+              720.0
+            ],
+            0
+          ]
+        ],
+        [
+          9.3,
+          "single",
+          [
+            [
+              686.7,
+              360.0
+            ],
+            [
+              405.0,
+              720.0
+            ],
+            0
+          ]
+        ],
+        [
+          9.8,
+          "single",
+          [
+            [
+              686.7,
+              360.0
+            ],
+            [
+              405.0,
+              720.0
+            ],
+            0
+          ]
+        ],
+        [
+          10.3,
+          "single",
+          [
+            [
+              686.7,
+              360.0
+            ],
+            [
+              405.0,
+              720.0
+            ],
+            0
+          ]
+        ],
+        [
+          10.8,
+          "single",
+          [
+            [
+              686.7,
+              360.0
+            ],
+            [
+              405.0,
+              720.0
+            ],
+            0
+          ]
+        ],
+        [
+          11.3,
+          "wide",
+          null
+        ],
+        [
+          11.8,
+          "wide",
+          null
+        ],
+        [
+          12.3,
+          "wide",
+          null
+        ],
+        [
+          12.8,
+          "wide",
+          null
+        ],
+        [
+          13.3,
+          "wide",
+          null
+        ],
+        [
+          13.81,
+          "single",
+          [
+            [
+              634.5,
+              360.0
+            ],
+            [
+              405.0,
+              720.0
+            ],
+            0
+          ]
+        ],
+        [
+          14.31,
+          "single",
+          [
+            [
+              634.5,
+              360.0
+            ],
+            [
+              405.0,
+              720.0
+            ],
+            0
+          ]
+        ],
+        [
+          14.81,
+          "single",
+          [
+            [
+              634.5,
+              360.9
+            ],
+            [
+              385.5,
+              685.4
+            ],
+            0
+          ]
+        ],
+        [
+          15.31,
+          "single",
+          [
+            [
+              634.5,
+              367.1
+            ],
+            [
+              361.6,
+              642.9
+            ],
+            0
+          ]
+        ],
+        [
+          15.81,
+          "single",
+          [
+            [
+              634.5,
+              369.7
+            ],
+            [
+              361.6,
+              642.9
+            ],
+            0
+          ]
+        ],
+        [
+          16.31,
+          "single",
+          [
+            [
+              634.5,
+              370.7
+            ],
+            [
+              376.7,
+              669.8
+            ],
+            0
+          ]
+        ],
+        [
+          16.81,
+          "single",
+          [
+            [
+              634.5,
+              360.0
+            ],
+            [
+              405.0,
+              720.0
+            ],
+            0
+          ]
+        ],
+        [
+          17.31,
+          "single",
+          [
+            [
+              634.5,
+              360.0
+            ],
+            [
+              405.0,
+              720.0
+            ],
+            0
+          ]
+        ],
+        [
+          17.81,
+          "single",
+          [
+            [
+              634.5,
+              360.0
+            ],
+            [
+              405.0,
+              720.0
+            ],
+            0
+          ]
+        ],
+        [
+          18.31,
+          "single",
+          [
+            [
+              688.1,
+              360.0
+            ],
+            [
+              405.0,
+              720.0
+            ],
+            0
+          ]
+        ],
+        [
+          18.81,
+          "single",
+          [
+            [
+              688.1,
+              360.0
+            ],
+            [
+              405.0,
+              720.0
+            ],
+            0
+          ]
+        ],
+        [
+          19.31,
+          "single",
+          [
+            [
+              688.1,
+              360.0
+            ],
+            [
+              405.0,
+              720.0
+            ],
+            0
+          ]
+        ],
+        [
+          19.81,
+          "wide",
+          null
+        ],
+        [
+          20.31,
+          "wide",
+          null
+        ],
+        [
+          20.81,
+          "wide",
+          null
+        ],
+        [
+          21.31,
+          "wide",
+          null
+        ],
+        [
+          21.81,
+          "wide",
+          null
+        ],
+        [
+          22.31,
+          "wide",
+          null
+        ],
+        [
+          22.81,
+          "wide",
+          null
+        ],
+        [
+          23.31,
+          "wide",
+          null
+        ],
+        [
+          23.82,
+          "wide",
+          null
+        ],
+        [
+          24.32,
+          "single",
+          [
+            [
+              682.2,
+              360.0
+            ],
+            [
+              405.0,
+              720.0
+            ],
+            0
+          ]
+        ],
+        [
+          24.82,
+          "single",
+          [
+            [
+              682.2,
+              360.0
+            ],
+            [
+              405.0,
+              720.0
+            ],
+            0
+          ]
+        ],
+        [
+          25.32,
+          "single",
+          [
+            [
+              682.2,
+              360.0
+            ],
+            [
+              405.0,
+              720.0
+            ],
+            0
+          ]
+        ],
+        [
+          25.82,
+          "single",
+          [
+            [
+              682.2,
+              360.0
+            ],
+            [
+              405.0,
+              720.0
+            ],
+            0
+          ]
+        ],
+        [
+          26.32,
+          "single",
+          [
+            [
+              646.9,
+              360.0
+            ],
+            [
+              405.0,
+              720.0
+            ],
+            0
+          ]
+        ],
+        [
+          26.82,
+          "single",
+          [
+            [
+              646.9,
+              360.0
+            ],
+            [
+              405.0,
+              720.0
+            ],
+            0
+          ]
+        ],
+        [
+          27.32,
+          "single",
+          [
+            [
+              646.9,
+              360.0
+            ],
+            [
+              405.0,
+              720.0
+            ],
+            0
+          ]
+        ],
+        [
+          27.82,
+          "wide",
+          null
+        ],
+        [
+          28.32,
+          "wide",
+          null
+        ],
+        [
+          28.82,
+          "wide",
+          null
+        ],
+        [
+          29.32,
+          "wide",
+          null
+        ],
+        [
+          29.82,
+          "wide",
+          null
+        ],
+        [
+          30.32,
+          "wide",
+          null
+        ],
+        [
+          30.82,
+          "wide",
+          null
+        ],
+        [
+          31.32,
+          "wide",
+          null
+        ],
+        [
+          31.82,
+          "wide",
+          null
+        ],
+        [
+          32.32,
+          "wide",
+          null
+        ],
+        [
+          32.82,
+          "wide",
+          null
+        ],
+        [
+          33.32,
+          "wide",
+          null
+        ],
+        [
+          33.83,
+          "wide",
+          null
+        ],
+        [
+          34.33,
+          "wide",
+          null
+        ],
+        [
+          34.83,
+          "wide",
+          null
+        ],
+        [
+          35.33,
+          "wide",
+          null
+        ]
+      ],
+      "lip_reader": true,
+      "diarization": false
+    },
+    "thumbnail": {
+      "t": 2.75,
+      "score": 1.72
+    }
+  },
+  "reasons": {
+    "hook": "Starts on a question or hook word",
+    "payoff": "Ends on a full sentence",
+    "emotion": "Calm delivery",
+    "standalone": "Complete thought",
+    "topic_match": "9 topic keywords"
+  },
+  "topic": "learning, machine, world",
+  "description": "The real world is actually very messy. Hard logical rules are not the way to solve real world problems. So, machine learning is all about learning from...",
+  "hashtags": [
+    "#shorts",
+    "#machine",
+    "#learning",
+    "#data",
+    "#computer"
+  ],
+  "key_words": [
+    "world",
+    "world",
+    "machine"
+  ],
+  "wi": 129,
+  "wj": 228,
+  "emojis": [],
+  "hook": "",
+  "zooms": [],
+  "text": "The real world is actually very messy. Hard logical rules are not the way to solve real world problems. So, machine learning is all about learning from examples. Rather than writing500,000 lines of code, we instead have the machine learn from observations about the world. And we looked through a bunch of these examples in the machine learning algorithm. Maybe millions, maybe billions, maybe even trillions, to identify the patterns and generalize from there. In the task of image recognition, we've been able to train models to take the pixels of an image and from those pixels learn high-level features.",
+  "fact_check": {
+    "type": "entertainment",
+    "claims": [
+      {
+        "claim": "The real world is actually very messy.",
+        "status": "unverifiable",
+        "note": "Not checked by Claude yet."
+      },
+      {
+        "claim": "Hard logical rules are not the way to solve real world problems.",
+        "status": "unverifiable",
+        "note": "Not checked by Claude yet."
+      },
+      {
+        "claim": "So, machine learning is all about learning from examples.",
+        "status": "unverifiable",
+        "note": "Not checked by Claude yet."
+      }
+    ],
+    "scripture": [],
+    "red_flags": [],
+    "honest_title": "The real world is actually very messy",
+    "verdict": "ok",
+    "summary": "Automatic check only (no Anthropic key): nothing obviously wrong, but claims were not verified.",
+    "checked_by": "heuristic"
+  },
+  "pick_method": "heuristic (no ANTHROPIC_API_KEY)",
+  "honest_title": "The real world is actually very messy",
+  "rendered_at": 1789647713.276336
+}

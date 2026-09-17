@@ -62,6 +62,11 @@ def build_clip_audio(source: Path, tl: Timeline, out: Path, workdir: Path) -> Pa
         ramp = np.linspace(0, 1, k, dtype=np.float32)[:, None]
         result[:k] *= ramp
         result[-k:] *= ramp[::-1]
+    # intro / outro cards are silent
+    if tl.lead_in > 0:
+        result = np.concatenate([np.zeros((int(tl.lead_in * SR), ch), dtype=np.float32), result])
+    if tl.lead_out > 0:
+        result = np.concatenate([result, np.zeros((int(tl.lead_out * SR), ch), dtype=np.float32)])
     write_wav(out, result)
     raw.unlink(missing_ok=True)
     return out

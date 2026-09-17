@@ -9,7 +9,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse, File
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from itsdangerous import URLSafeTimedSerializer, BadSignature
-from .. import db, pipeline, factcheck, captions
+from .. import db, pipeline, factcheck, captions, brand
 from ..config import cfg, env, PROJECTS, UPLOADS, ROOT, CACHE, device
 from ..jobs import runner
 from .. import __version__
@@ -107,7 +107,7 @@ def logout():
 @app.get("/", response_class=HTMLResponse)
 def home(request: Request):
     return page(request, "home.html", projects=list_projects(), defaults=pipeline.default_options(),
-                lengths=cfg.get("moments.lengths", {}), presets=caption_presets())
+                lengths=cfg.get("moments.lengths", {}), presets=caption_presets(), templates_=brand.all_templates())
 
 
 @app.get("/project/{pid}", response_class=HTMLResponse)
@@ -115,7 +115,7 @@ def project_page(request: Request, pid: str):
     p = project_json(pid)
     if not p:
         raise HTTPException(404)
-    return page(request, "project.html", project=p, presets=caption_presets())
+    return page(request, "project.html", project=p, presets=caption_presets(), templates_=brand.all_templates())
 
 
 def caption_presets() -> list[dict]:
@@ -152,12 +152,114 @@ async def api_clip_settings(cid: str, request: Request):
     if not c:
         raise HTTPException(404)
     body = await request.json()
-    allowed = {"style", "emoji", "ratio", "layout", "captions", "hook", "hook_text", "zooms", "filler", "broll", "template", "progress_bar"}
+    allowed = {"style", "emoji", "ratio", "layout", "captions", "hook", "hook_text", "zooms", "filler", "broll", "template", "progress_bar",
+               "credit", "intro_card", "outro_card"}
     new = {**(c["settings"] or {}), **{k: v for k, v in body.items() if k in allowed}}
     db.update("clips", cid, {"settings": new})
     if body.get("render"):
         runner.submit("clips", cid, lambda prog: pipeline.render_one(cid, prog))
     return {"ok": True, "settings": new}
+
+
+# ----------------------------------------------------------------------------- brand templates
+@app.get("/templates", response_class=HTMLResponse)
+def templates_page(request: Request):
+    return page(request, "templates.html", templates_=brand.all_templates(), presets=caption_presets())
+
+
+@app.get("/api/templates")
+def api_templates():
+    return {"templates": [{"id": t["id"], "name": t["name"], "is_default": bool(t["is_default"]), "data": t["data"]} for t in brand.all_templates()]}
+
+
+@app.post("/api/templates")
+async def api_save_template(request: Request, id: str = Form(""), name: str = Form("Template"), watermark_text: str = Form(""),
+                            accent: str = Form("#F5A524"), caption_preset: str = Form("auto"), hook_style: str = Form("box"),
+                            intro_card: str = Form(""), outro_card: str = Form(""), credit: str = Form(""), progress_bar: str = Form(""),
+                            outro_text: str = Form("Follow for more"), make_default: str = Form(""), keep_logo: str = Form("1"),
+                            logo: UploadFile | None = File(None)):
+    existing = brand.get(id) if id else None
+    logo_path = existing["data"].get("logo", "") if (existing and existing["id"] == id and keep_logo == "1") else ""
+    if logo is not None and logo.filename:
+        logo_path = brand.save_logo(await logo.read(), Path(logo.filename).suffix.lower())
+    data = {"watermark_text": watermark_text.strip(), "logo": logo_path, "accent": accent, "caption_preset": caption_preset,
+            "hook_style": hook_style if hook_style in ("box", "bar", "plain") else "box", "intro_card": intro_card == "on",
+            "outro_card": outro_card == "on", "credit": credit == "on", "progress_bar": progress_bar == "on", "outro_text": outro_text.strip()}
+    tid = brand.save(id or None, name.strip(), data, make_default=(make_default == "on"))
+    return RedirectResponse("/templates", status_code=303)
+
+
+@app.post("/api/templates/{tid}/default")
+def api_template_default(tid: str):
+    brand.set_default(tid)
+    return {"ok": True}
+
+
+@app.delete("/api/templates/{tid}")
+def api_template_delete(tid: str):
+    brand.delete(tid)
+    return {"ok": True}
+
+
+@app.get("/logos/{name}")
+def logo_file(name: str):
+    f = (brand.LOGOS / name).resolve()
+    if not str(f).startswith(str(brand.LOGOS.resolve())) or not f.exists():
+        raise HTTPException(404)
+    return FileResponse(f)
+
+
+@app.post("/api/projects/{pid}/settings")
+async def api_project_settings(pid: str, request: Request):
+    p = db.loads(db.row("SELECT * FROM projects WHERE id=?", (pid,)), "options")
+    if not p:
+        raise HTTPException(404)
+    body = await request.json()
+    opts = dict(p["options"] or {})
+    if "credit_name" in body:
+        opts["credit_name"] = (body.get("credit_name") or "").strip()
+    if "title" in body and body["title"].strip():
+        db.update("projects", pid, {"title": body["title"].strip()[:200]})
+    db.update("projects", pid, {"options": opts})
+    return {"ok": True, "options": opts}
+
+
+@app.get("/api/projects/{pid}/download.zip")
+def api_download_zip(pid: str):
+    import zipfile
+    p = db.row("SELECT * FROM projects WHERE id=?", (pid,))
+    if not p:
+        raise HTTPException(404)
+    clips = db.rows("SELECT * FROM clips WHERE project_id=? AND status='done' ORDER BY idx", (pid,))
+    if not clips:
+        raise HTTPException(404, "No finished clips yet")
+    zpath = PROJECTS / pid / "clips.zip"
+    with zipfile.ZipFile(zpath, "w", zipfile.ZIP_STORED) as z:
+        lines = []
+        for c in clips:
+            if c["path"] and Path(c["path"]).exists():
+                safe = "".join(ch if ch.isalnum() or ch in " -_" else "" for ch in (c["title"] or "clip"))[:50].strip() or "clip"
+                z.write(c["path"], f"{c['idx']:02d} {safe}.mp4")
+                big = Path(c["path"]).with_name(Path(c["path"]).stem + "_thumb.jpg")
+                if big.exists():
+                    z.write(big, f"{c['idx']:02d} {safe} thumbnail.jpg")
+                d = db.loads(dict(c), "data")["data"] or {}
+                lines.append(f"{c['idx']:02d}. {c['title']}\n\n{d.get('description', '')}\n\n{' '.join(d.get('hashtags') or [])}\n\n---\n")
+        z.writestr("titles and descriptions.txt", "\n".join(lines))
+    safe_t = "".join(ch if ch.isalnum() or ch in " -_" else "" for ch in (p["title"] or "clips"))[:60].strip() or "clips"
+    return FileResponse(zpath, media_type="application/zip", filename=f"{safe_t} - clips.zip")
+
+
+@app.get("/api/clips/{cid}/thumbnail")
+def api_clip_thumbnail(cid: str):
+    c = db.row("SELECT * FROM clips WHERE id=?", (cid,))
+    if not c or not c["path"]:
+        raise HTTPException(404)
+    big = Path(c["path"]).with_name(Path(c["path"]).stem + "_thumb.jpg")
+    f = big if big.exists() else Path(c["thumbnail"] or "")
+    if not f.exists():
+        raise HTTPException(404)
+    return FileResponse(f, media_type="image/jpeg", filename=f"{c['idx']:02d} thumbnail.jpg")
 
 
 @app.get("/health")
@@ -216,6 +318,7 @@ def clip_json(c: dict) -> dict:
         "hook": (d.get("render") or {}).get("hook") or {"text": d.get("hook", "")},
         "filler": (d.get("render") or {}).get("filler") or {},
         "zooms": (d.get("render") or {}).get("zooms") or [],
+        "thumbnail_url": f"/api/clips/{c['id']}/thumbnail" if c.get("path") else "",
     }
 
 
@@ -250,6 +353,7 @@ async def api_create_project(request: Request, url: str = Form(""), clips: int =
                              keywords: str = Form(""), start: str = Form(""), end: str = Form(""),
                              style: str = Form("auto"), emoji: str = Form("on"), layout: str = Form("auto"),
                              filler: str = Form("light"), hook: str = Form("on"), zooms: str = Form("on"), progress_bar: str = Form("on"),
+                             ratio: str = Form("9:16"), template: str = Form(""),
                              file: UploadFile | None = File(None)):
     opts = pipeline.default_options()
     opts.update({"clips": max(1, min(20, int(clips))), "length": length if length in ("auto", "short", "medium", "long") else "auto",
@@ -257,7 +361,8 @@ async def api_create_project(request: Request, url: str = Form(""), clips: int =
                  "style": style, "emoji": emoji in ("on", "true", "1"),
                  "layout": layout if layout in ("auto", "single", "split", "wide") else "auto",
                  "filler": filler if filler in ("off", "light", "aggressive") else "light",
-                 "hook": hook in ("on", "true", "1"), "zooms": zooms in ("on", "true", "1"), "progress_bar": progress_bar in ("on", "true", "1")})
+                 "hook": hook in ("on", "true", "1"), "zooms": zooms in ("on", "true", "1"), "progress_bar": progress_bar in ("on", "true", "1"),
+                 "ratio": ratio if ratio in ("9:16", "1:1", "16:9") else "9:16", "template": template})
     title = ""
     if file is not None and file.filename:
         UPLOADS.mkdir(parents=True, exist_ok=True)

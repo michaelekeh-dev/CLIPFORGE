@@ -49,6 +49,18 @@
             <option value="wide">Whole picture with blurred edges</option>
           </select>
         </label>
+        <label>Shape
+          <select class="input" name="ratio">
+            <option value="9:16">Vertical 9:16 (Shorts)</option>
+            <option value="1:1">Square 1:1</option>
+            <option value="16:9">Wide 16:9</option>
+          </select>
+        </label>
+        <label>Brand template
+          <select class="input" name="template">
+            {% for t in templates_ %}<option value="{{ t.id }}" {% if t.is_default %}selected{% endif %}>{{ t.name }}{% if t.is_default %} (default){% endif %}</option>{% endfor %}
+          </select>
+        </label>
         <label>Remove filler words and pauses
           <select class="input" name="filler">
             <option value="off">Off</option>

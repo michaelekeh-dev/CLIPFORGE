@@ -26,7 +26,7 @@ def hook_text_from(title: str, text: str, max_words: int | None = None) -> str:
     return t
 
 
-def hook_ass(text: str, out_w: int, out_h: int, seconds: float, style: dict | None = None) -> tuple[str, list[str]]:
+def hook_ass(text: str, out_w: int, out_h: int, seconds: float, style: dict | None = None, offset: float = 0.0) -> tuple[str, list[str]]:
     """Returns (style line, event lines). Box slides in from the top, fades out."""
     st = {**H, **(style or {})}
     scale = out_w / 1080.0
@@ -62,7 +62,7 @@ def hook_ass(text: str, out_w: int, out_h: int, seconds: float, style: dict | No
     else:
         style_line = (f"Style: Hook,{st['font']},{size},{hex_to_ass(st.get('box_color', '#FFFFFF'))},{text_c},{hex_to_ass('#000000')},{hex_to_ass('#000000', 0x60)},0,0,0,0,100,100,0,0,1,{int(6 * scale)},{int(3 * scale)},8,40,40,0,1")
         tags = ""
-    ev = (f"Dialogue: 3,{ass_time(0)},{ass_time(seconds)},Hook,,0,0,0,,"
+    ev = (f"Dialogue: 3,{ass_time(offset)},{ass_time(offset + seconds)},Hook,,0,0,0,,"
           f"{{\\an8\\move({out_w // 2},{y - int(60 * scale)},{out_w // 2},{y},0,260)\\fad(180,260)\\fscx96\\fscy96\\t(0,260,\\fscx100\\fscy100){tags}}}{txt}")
     return style_line, [ev]
 
@@ -248,7 +248,8 @@ def load_logo(path: str, height: int) -> Image.Image | None:
         return None
 
 
-def brand_overlays(template: dict, out_w: int, out_h: int, duration: float, credit_name: str = "") -> list:
+def brand_overlays(template: dict, out_w: int, out_h: int, duration: float, credit_name: str = "", offset: float = 0.0,
+                   watermark_from: float = 0.0) -> list:
     """Watermark + logo (whole clip, top right) and the source credit (bottom, first 3s)."""
     d = template.get("data", template)
     scale = out_w / 1080.0
@@ -259,18 +260,22 @@ def brand_overlays(template: dict, out_w: int, out_h: int, duration: float, cred
         im = text_image(d["watermark_text"], int(30 * scale), "#FFFFFF", "Montserrat SemiBold")
         logo = load_logo(d["logo"], int(40 * scale)) if d.get("logo") else None
         x = x_right - im.width - (logo.width + int(10 * scale) if logo else 0)
-        out.append(ImageOverlay(im, x, y, 0, duration + 1, fade=0.0, alpha=0.85))
+        out.append(ImageOverlay(im, x, y, watermark_from, duration + 1, fade=0.3, alpha=0.85))
         if logo:
-            out.append(ImageOverlay(logo, x_right - logo.width, y - (logo.height - im.height) // 2, 0, duration + 1, fade=0.0, alpha=0.95))
+            out.append(ImageOverlay(logo, x_right - logo.width, y - (logo.height - im.height) // 2, watermark_from, duration + 1, fade=0.3, alpha=0.95))
     elif d.get("logo"):
         logo = load_logo(d["logo"], int(44 * scale))
         if logo:
-            out.append(ImageOverlay(logo, x_right - logo.width, y, 0, duration + 1, fade=0.0, alpha=0.95))
+            out.append(ImageOverlay(logo, x_right - logo.width, y, watermark_from, duration + 1, fade=0.3, alpha=0.95))
     if d.get("credit", True) and credit_name:
         name = credit_name if credit_name.startswith("@") else "@" + credit_name.replace(" ", "")
         im = text_image("🎙 " + name, int(30 * scale), "#FFFFFF", "Montserrat SemiBold")
-        out.append(ImageOverlay(im, (out_w - im.width) // 2, int(out_h * 0.775), 0.2, 3.2, fade=0.3, alpha=0.9))
+        out.append(ImageOverlay(im, (out_w - im.width) // 2, int(out_h * 0.775), offset + 0.2, offset + 3.2, fade=0.3, alpha=0.9))
     return out
+
+
+def card_bgr(im: Image.Image) -> np.ndarray:
+    return np.ascontiguousarray(np.array(im.convert("RGB"))[:, :, ::-1])
 
 
 def card_image(template: dict, out_w: int, out_h: int, text: str, sub: str = "") -> Image.Image:

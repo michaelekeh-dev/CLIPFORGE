@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block title %}Brand templates · CLIPFORGE{% endblock %}
+{% block nav %}<a class="muted" href="/">All projects</a>{% endblock %}
+{% block content %}
+<h1>Brand templates</h1>
+<p class="muted">A template sets the watermark, logo, colour, caption style and cards for every clip. One template is the default.</p>
+<div class="tlist">
+{% for t in templates_ %}
+<section class="card tcard" data-id="{{ t.id }}">
+  <div class="thead">
+    <div><b>{{ t.name }}</b> {% if t.is_default %}<span class="pill ok">default</span>{% endif %}</div>
+    <div class="row">
+      {% if not t.is_default %}<button class="btn secondary small make-default">Make default</button>{% endif %}
+      <button class="btn secondary small edit-btn">Edit</button>
+      {% if templates_|length > 1 %}<button class="btn danger small del-btn">Delete</button>{% endif %}
+    </div>
+  </div>
+  <div class="tsummary muted small">
+    <span style="display:inline-block;width:14px;height:14px;border-radius:4px;background:{{ t.data.accent }};vertical-align:middle"></span>
+    {{ t.data.watermark_text or 'no watermark' }} · captions: {{ t.data.caption_preset }} · hook: {{ t.data.hook_style }}
+    {% if t.data.logo %} · logo{% endif %}{% if t.data.intro_card %} · intro card{% endif %}{% if t.data.outro_card %} · outro card{% endif %}
+    {% if t.data.credit %} · source credit{% endif %}
+  </div>
+  <form class="tform hidden" method="post" action="/api/templates" enctype="multipart/form-data">
+    <input type="hidden" name="id" value="{{ t.id }}">
+    <div class="grid">
+      <label>Name<input class="input" name="name" value="{{ t.name }}"></label>
+      <label>Watermark text<input class="input" name="watermark_text" value="{{ t.data.watermark_text }}" placeholder="@YourChannel"></label>
+      <label>Accent colour<input class="input color" type="color" name="accent" value="{{ t.data.accent }}"></label>
+      <label>Caption style<select class="input" name="caption_preset"><option value="auto" {% if t.data.caption_preset == 'auto' %}selected{% endif %}>Auto</option>{% for p in presets %}<option value="{{ p.id }}" {% if t.data.caption_preset == p.id %}selected{% endif %}>{{ p.label }}</option>{% endfor %}</select></label>
+      <label>Hook style<select class="input" name="hook_style">{% for h in ['box','bar','plain'] %}<option value="{{ h }}" {% if t.data.hook_style == h %}selected{% endif %}>{{ h|capitalize }}</option>{% endfor %}</select></label>
+      <label>Logo (PNG)<input class="input" type="file" name="logo" accept="image/*">{% if t.data.logo %}<span class="muted small">Current logo kept unless you pick a new one</span>{% endif %}</label>
+      <label>Outro text<input class="input" name="outro_text" value="{{ t.data.outro_text }}"></label>
+      <div class="checks span2">
+        <label class="check"><input type="checkbox" name="credit" {% if t.data.credit %}checked{% endif %}> Source credit for 3s</label>
+        <label class="check"><input type="checkbox" name="progress_bar" {% if t.data.progress_bar %}checked{% endif %}> Progress bar</label>
+        <label class="check"><input type="checkbox" name="intro_card" {% if t.data.intro_card %}checked{% endif %}> Intro card</label>
+        <label class="check"><input type="checkbox" name="outro_card" {% if t.data.outro_card %}checked{% endif %}> Outro card</label>
+        <label class="check"><input type="checkbox" name="make_default" {% if t.is_default %}checked{% endif %}> Default template</label>
+      </div>
+    </div>
+    <div class="row" style="margin-top:12px"><button class="btn primary" type="submit">Save</button><button class="btn secondary cancel-btn" type="button">Cancel</button></div>
+  </form>
+</section>
+{% endfor %}
+</div>
+<section class="card" style="margin-top:14px">
+  <h3>New template</h3>
+  <form method="post" action="/api/templates" enctype="multipart/form-data">
+    <div class="grid">
+      <label>Name<input class="input" name="name" placeholder="e.g. Faith clips" required></label>
+      <label>Watermark text<input class="input" name="watermark_text" placeholder="@YourChannel"></label>
+      <label>Accent colour<input class="input color" type="color" name="accent" value="#F5A524"></label>
+      <label>Caption style<select class="input" name="caption_preset"><option value="auto">Auto</option>{% for p in presets %}<option value="{{ p.id }}">{{ p.label }}</option>{% endfor %}</select></label>
+      <label>Hook style<select class="input" name="hook_style"><option value="box">Box</option><option value="bar">Bar</option><option value="plain">Plain</option></select></label>
+      <label>Logo (PNG)<input class="input" type="file" name="logo" accept="image/*"></label>
+      <label>Outro text<input class="input" name="outro_text" value="Follow for more"></label>
+      <div class="checks span2">
+        <label class="check"><input type="checkbox" name="credit" checked> Source credit for 3s</label>
+        <label class="check"><input type="checkbox" name="progress_bar" checked> Progress bar</label>
+        <label class="check"><input type="checkbox" name="intro_card"> Intro card</label>
+        <label class="check"><input type="checkbox" name="outro_card"> Outro card</label>
+        <label class="check"><input type="checkbox" name="make_default"> Default template</label>
+      </div>
+    </div>
+    <div class="row" style="margin-top:12px"><button class="btn primary" type="submit">Create template</button></div>
+  </form>
+</section>
+{% endblock %}
+{% block scripts %}<script>CF.templates();</script>{% endblock %}

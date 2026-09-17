@@ -28,6 +28,8 @@ def main(argv=None):
     ap.add_argument("--no-hook", action="store_true", help="no hook title at the top")
     ap.add_argument("--no-zooms", action="store_true", help="no punch-in zooms")
     ap.add_argument("--no-progress", action="store_true", help="no progress bar")
+    ap.add_argument("--credit", default=None, help="source channel name for the 3s credit line, e.g. @JumpersJump")
+    ap.add_argument("--template", default=None, help="brand template id (default: the default template)")
     ap.add_argument("--out", default="output", help="output folder (default ./output)")
     args = ap.parse_args(argv)
 
@@ -42,6 +44,10 @@ def main(argv=None):
                  "zooms": not args.no_zooms, "progress_bar": not args.no_progress})
     if args.filler:
         opts["filler"] = args.filler
+    if args.credit is not None:
+        opts["credit_name"] = args.credit
+    if args.template:
+        opts["template"] = args.template
     if args.keywords:
         opts["keywords"] = [k.strip() for k in args.keywords.split(",") if k.strip()]
     src = args.source

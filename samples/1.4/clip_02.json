@@ -1,0 +1,1281 @@
+{
+  "id": "c_06fbcac8d5a7",
+  "project": "p_9190e31a0dfe",
+  "index": 2,
+  "source": "/home/user/CLIPFORGE/data/projects/p_9190e31a0dfe/source.mp4",
+  "title": "You realize just how amazing humans are, just how amazing...",
+  "start": 90.84,
+  "end": 134.63,
+  "duration": 46.05,
+  "timeline": [
+    [
+      90.84,
+      134.33
+    ],
+    [
+      134.47,
+      134.63
+    ]
+  ],
+  "score": 99,
+  "settings": {
+    "ratio": "9:16",
+    "layout": "auto",
+    "style": "auto",
+    "emoji": true,
+    "filler": "light",
+    "hook": true,
+    "zooms": true,
+    "progress_bar": true,
+    "template": ""
+  },
+  "render": {
+    "frames": 1105,
+    "fps": 23.976,
+    "width": 1080,
+    "height": 1920,
+    "duration": 46.05,
+    "loudness": {
+      "input_i": "-25.20",
+      "input_tp": "-9.25",
+      "input_lra": "3.50",
+      "input_thresh": "-35.31",
+      "output_i": "-14.45",
+      "output_tp": "-1.50",
+      "output_lra": "3.40",
+      "output_thresh": "-24.54",
+      "normalization_type": "dynamic",
+      "target_offset": "0.45"
+    },
+    "template": {
+      "id": "t_d5e8d535e33b",
+      "name": "TheTruthUntold",
+      "credit": "@GoogleDevelopers"
+    },
+    "captions": {
+      "style": "bold_pop",
+      "words": 127,
+      "emojis": [
+        "🤖",
+        "🤖"
+      ],
+      "lines": 127
+    },
+    "filler": {
+      "level": "light",
+      "cuts": [
+        {
+          "s": 134.33,
+          "e": 134.47,
+          "why": "false start: Blah,"
+        }
+      ],
+      "removed_seconds": 0.14
+    },
+    "zooms": [
+      {
+        "s": 21.45,
+        "peak_s": 21.8,
+        "peak_e": 22.9,
+        "e": 23.4,
+        "amount": 1.12,
+        "src": 112.44
+      },
+      {
+        "s": 34.919,
+        "peak_s": 35.269,
+        "peak_e": 35.94,
+        "e": 36.44,
+        "amount": 1.12,
+        "src": 125.48
+      }
+    ],
+    "hook": {
+      "on": true,
+      "text": "Theory: You realize just how amazing humans are..."
+    },
+    "reframe": {
+      "layout_setting": "auto",
+      "shots": [
+        {
+          "start": 90.84,
+          "end": 92.759,
+          "layout": "wide",
+          "faces": 0,
+          "speakers": [],
+          "confidence": 0
+        },
+        {
+          "start": 92.759,
+          "end": 96.013,
+          "layout": "single",
+          "faces": 1,
+          "speakers": [
+            [
+              92.759,
+              96.013,
+              0
+            ]
+          ],
+          "confidence": 1.0
+        },
+        {
+          "start": 96.013,
+          "end": 97.806,
+          "layout": "wide",
+          "faces": 0,
+          "speakers": [],
+          "confidence": 0
+        },
+        {
+          "start": 97.806,
+          "end": 103.145,
+          "layout": "single",
+          "faces": 1,
+          "speakers": [
+            [
+              97.806,
+              103.145,
+              0
+            ]
+          ],
+          "confidence": 1.0
+        },
+        {
+          "start": 103.145,
+          "end": 104.438,
+          "layout": "single",
+          "faces": 1,
+          "speakers": [
+            [
+              103.145,
+              104.438,
+              0
+            ]
+          ],
+          "confidence": 1.0
+        },
+        {
+          "start": 104.438,
+          "end": 105.647,
+          "layout": "wide",
+          "faces": 0,
+          "speakers": [],
+          "confidence": 0
+        },
+        {
+          "start": 105.647,
+          "end": 106.898,
+          "layout": "single",
+          "faces": 1,
+          "speakers": [
+            [
+              105.647,
+              106.898,
+              0
+            ]
+          ],
+          "confidence": 1.0
+        },
+        {
+          "start": 106.898,
+          "end": 108.65,
+          "layout": "wide",
+          "faces": 0,
+          "speakers": [],
+          "confidence": 0
+        },
+        {
+          "start": 108.65,
+          "end": 117.284,
+          "layout": "wide",
+          "faces": 0,
+          "speakers": [],
+          "confidence": 0
+        },
+        {
+          "start": 117.284,
+          "end": 119.286,
+          "layout": "single",
+          "faces": 1,
+          "speakers": [
+            [
+              117.284,
+              119.286,
+              0
+            ]
+          ],
+          "confidence": 1.0
+        },
+        {
+          "start": 119.286,
+          "end": 122.289,
+          "layout": "wide",
+          "faces": 3,
+          "speakers": [
+            [
+              119.286,
+              122.289,
+              0
+            ]
+          ],
+          "confidence": 1.0
+        },
+        {
+          "start": 122.289,
+          "end": 123.915,
+          "layout": "single",
+          "faces": 1,
+          "speakers": [
+            [
+              122.289,
+              123.915,
+              0
+            ]
+          ],
+          "confidence": 1.0
+        },
+        {
+          "start": 123.915,
+          "end": 125.459,
+          "layout": "wide",
+          "faces": 0,
+          "speakers": [],
+          "confidence": 0
+        },
+        {
+          "start": 125.459,
+          "end": 130.964,
+          "layout": "single",
+          "faces": 1,
+          "speakers": [
+            [
+              125.459,
+              130.964,
+              0
+            ]
+          ],
+          "confidence": 1.0
+        },
+        {
+          "start": 130.964,
+          "end": 134.63,
+          "layout": "single",
+          "faces": 1,
+          "speakers": [
+            [
+              130.964,
+              134.63,
+              0
+            ]
+          ],
+          "confidence": 1.0
+        }
+      ],
+      "keyframes": [
+        [
+          0.79,
+          "single",
+          [
+            [
+              923.7,
+              360.0
+            ],
+            [
+              405.0,
+              720.0
+            ],
+            0
+          ]
+        ],
+        [
+          1.29,
+          "wide",
+          null
+        ],
+        [
+          1.79,
+          "wide",
+          null
+        ],
+        [
+          2.29,
+          "wide",
+          null
+        ],
+        [
+          2.79,
+          "single",
+          [
+            [
+              667.1,
+              360.0
+            ],
+            [
+              405.0,
+              720.0
+            ],
+            0
+          ]
+        ],
+        [
+          3.29,
+          "single",
+          [
+            [
+              667.1,
+              360.0
+            ],
+            [
+              405.0,
+              720.0
+            ],
+            0
+          ]
+        ],
+        [
+          3.8,
+          "single",
+          [
+            [
+              667.1,
+              360.0
+            ],
+            [
+              405.0,
+              720.0
+            ],
+            0
+          ]
+        ],
+        [
+          4.3,
+          "single",
+          [
+            [
+              667.1,
+              360.0
+            ],
+            [
+              405.0,
+              720.0
+            ],
+            0
+          ]
+        ],
+        [
+          4.8,
+          "single",
+          [
+            [
+              667.1,
+              360.0
+            ],
+            [
+              405.0,
+              720.0
+            ],
+            0
+          ]
+        ],
+        [
+          5.3,
+          "single",
+          [
+            [
+              667.1,
+              360.0
+            ],
+            [
+              405.0,
+              720.0
+            ],
+            0
+          ]
+        ],
+        [
+          5.8,
+          "single",
+          [
+            [
+              667.1,
+              360.0
+            ],
+            [
+              405.0,
+              720.0
+            ],
+            0
+          ]
+        ],
+        [
+          6.3,
+          "wide",
+          null
+        ],
+        [
+          6.8,
+          "wide",
+          null
+        ],
+        [
+          7.3,
+          "wide",
+          null
+        ],
+        [
+          7.8,
+          "single",
+          [
+            [
+              572.4,
+              360.0
+            ],
+            [
+              405.0,
+              720.0
+            ],
+            0
+          ]
+        ],
+        [
+          8.3,
+          "single",
+          [
+            [
+              572.4,
+              360.0
+            ],
+            [
+              405.0,
+              720.0
+            ],
+            0
+          ]
+        ],
+        [
+          8.8,
+          "single",
+          [
+            [
+              572.4,
+              360.0
+            ],
+            [
+              405.0,
+              720.0
+            ],
+            0
+          ]
+        ],
+        [
+          9.3,
+          "single",
+          [
+            [
+              572.4,
+              360.0
+            ],
+            [
+              405.0,
+              720.0
+            ],
+            0
+          ]
+        ],
+        [
+          9.8,
+          "single",
+          [
+            [
+              572.4,
+              360.0
+            ],
+            [
+              405.0,
+              720.0
+            ],
+            0
+          ]
+        ],
+        [
+          10.3,
+          "single",
+          [
+            [
+              572.4,
+              360.0
+            ],
+            [
+              405.0,
+              720.0
+            ],
+            0
+          ]
+        ],
+        [
+          10.8,
+          "single",
+          [
+            [
+              572.4,
+              360.0
+            ],
+            [
+              405.0,
+              720.0
+            ],
+            0
+          ]
+        ],
+        [
+          11.3,
+          "single",
+          [
+            [
+              572.4,
+              360.0
+            ],
+            [
+              405.0,
+              720.0
+            ],
+            0
+          ]
+        ],
+        [
+          11.8,
+          "single",
+          [
+            [
+              572.4,
+              360.0
+            ],
+            [
+              405.0,
+              720.0
+            ],
+            0
+          ]
+        ],
+        [
+          12.3,
+          "single",
+          [
+            [
+              572.4,
+              360.0
+            ],
+            [
+              405.0,
+              720.0
+            ],
+            0
+          ]
+        ],
+        [
+          12.8,
+          "single",
+          [
+            [
+              572.4,
+              360.0
+            ],
+            [
+              405.0,
+              720.0
+            ],
+            0
+          ]
+        ],
+        [
+          13.3,
+          "single",
+          [
+            [
+              836.6,
+              360.0
+            ],
+            [
+              405.0,
+              720.0
+            ],
+            0
+          ]
+        ],
+        [
+          13.81,
+          "single",
+          [
+            [
+              813.6,
+              360.0
+            ],
+            [
+              405.0,
+              720.0
+            ],
+            0
+          ]
+        ],
+        [
+          14.31,
+          "single",
+          [
+            [
+              788.2,
+              360.0
+            ],
+            [
+              405.0,
+              720.0
+            ],
+            0
+          ]
+        ],
+        [
+          14.81,
+          "wide",
+          null
+        ],
+        [
+          15.31,
+          "wide",
+          null
+        ],
+        [
+          15.81,
+          "single",
+          [
+            [
+              386.8,
+              360.0
+            ],
+            [
+              405.0,
+              720.0
+            ],
+            0
+          ]
+        ],
+        [
+          16.31,
+          "single",
+          [
+            [
+              386.8,
+              360.0
+            ],
+            [
+              405.0,
+              720.0
+            ],
+            0
+          ]
+        ],
+        [
+          16.81,
+          "single",
+          [
+            [
+              386.8,
+              360.0
+            ],
+            [
+              405.0,
+              720.0
+            ],
+            0
+          ]
+        ],
+        [
+          17.31,
+          "wide",
+          null
+        ],
+        [
+          17.81,
+          "wide",
+          null
+        ],
+        [
+          18.31,
+          "wide",
+          null
+        ],
+        [
+          18.81,
+          "wide",
+          null
+        ],
+        [
+          19.31,
+          "wide",
+          null
+        ],
+        [
+          19.81,
+          "wide",
+          null
+        ],
+        [
+          20.31,
+          "wide",
+          null
+        ],
+        [
+          20.81,
+          "wide",
+          null
+        ],
+        [
+          21.31,
+          "wide",
+          null
+        ],
+        [
+          21.81,
+          "wide",
+          null
+        ],
+        [
+          22.31,
+          "wide",
+          null
+        ],
+        [
+          22.81,
+          "wide",
+          null
+        ],
+        [
+          23.31,
+          "wide",
+          null
+        ],
+        [
+          23.82,
+          "wide",
+          null
+        ],
+        [
+          24.32,
+          "wide",
+          null
+        ],
+        [
+          24.82,
+          "wide",
+          null
+        ],
+        [
+          25.32,
+          "wide",
+          null
+        ],
+        [
+          25.82,
+          "wide",
+          null
+        ],
+        [
+          26.32,
+          "wide",
+          null
+        ],
+        [
+          26.82,
+          "wide",
+          null
+        ],
+        [
+          27.32,
+          "single",
+          [
+            [
+              635.9,
+              360.0
+            ],
+            [
+              405.0,
+              720.0
+            ],
+            0
+          ]
+        ],
+        [
+          27.82,
+          "single",
+          [
+            [
+              635.9,
+              360.0
+            ],
+            [
+              405.0,
+              720.0
+            ],
+            0
+          ]
+        ],
+        [
+          28.32,
+          "single",
+          [
+            [
+              635.9,
+              360.0
+            ],
+            [
+              405.0,
+              720.0
+            ],
+            0
+          ]
+        ],
+        [
+          28.82,
+          "single",
+          [
+            [
+              635.9,
+              360.0
+            ],
+            [
+              405.0,
+              720.0
+            ],
+            0
+          ]
+        ],
+        [
+          29.32,
+          "wide",
+          null
+        ],
+        [
+          29.82,
+          "wide",
+          null
+        ],
+        [
+          30.32,
+          "wide",
+          null
+        ],
+        [
+          30.82,
+          "wide",
+          null
+        ],
+        [
+          31.32,
+          "wide",
+          null
+        ],
+        [
+          31.82,
+          "wide",
+          null
+        ],
+        [
+          32.32,
+          "single",
+          [
+            [
+              426.7,
+              360.0
+            ],
+            [
+              405.0,
+              720.0
+            ],
+            0
+          ]
+        ],
+        [
+          32.82,
+          "single",
+          [
+            [
+              426.7,
+              360.0
+            ],
+            [
+              405.0,
+              720.0
+            ],
+            0
+          ]
+        ],
+        [
+          33.32,
+          "single",
+          [
+            [
+              423.9,
+              360.0
+            ],
+            [
+              405.0,
+              720.0
+            ],
+            0
+          ]
+        ],
+        [
+          33.83,
+          "single",
+          [
+            [
+              374.4,
+              360.0
+            ],
+            [
+              405.0,
+              720.0
+            ],
+            0
+          ]
+        ],
+        [
+          34.33,
+          "wide",
+          null
+        ],
+        [
+          34.83,
+          "wide",
+          null
+        ],
+        [
+          35.33,
+          "wide",
+          null
+        ],
+        [
+          35.83,
+          "single",
+          [
+            [
+              663.3,
+              321.4
+            ],
+            [
+              361.6,
+              642.9
+            ],
+            0
+          ]
+        ],
+        [
+          36.33,
+          "single",
+          [
+            [
+              663.3,
+              354.6
+            ],
+            [
+              398.9,
+              709.1
+            ],
+            0
+          ]
+        ],
+        [
+          36.83,
+          "single",
+          [
+            [
+              663.3,
+              360.0
+            ],
+            [
+              405.0,
+              720.0
+            ],
+            0
+          ]
+        ],
+        [
+          37.33,
+          "single",
+          [
+            [
+              663.3,
+              360.0
+            ],
+            [
+              405.0,
+              720.0
+            ],
+            0
+          ]
+        ],
+        [
+          37.83,
+          "single",
+          [
+            [
+              663.3,
+              360.0
+            ],
+            [
+              405.0,
+              720.0
+            ],
+            0
+          ]
+        ],
+        [
+          38.33,
+          "single",
+          [
+            [
+              663.3,
+              360.0
+            ],
+            [
+              405.0,
+              720.0
+            ],
+            0
+          ]
+        ],
+        [
+          38.83,
+          "single",
+          [
+            [
+              663.3,
+              360.0
+            ],
+            [
+              405.0,
+              720.0
+            ],
+            0
+          ]
+        ],
+        [
+          39.33,
+          "single",
+          [
+            [
+              663.3,
+              360.0
+            ],
+            [
+              405.0,
+              720.0
+            ],
+            0
+          ]
+        ],
+        [
+          39.83,
+          "single",
+          [
+            [
+              663.3,
+              360.0
+            ],
+            [
+              405.0,
+              720.0
+            ],
+            0
+          ]
+        ],
+        [
+          40.33,
+          "single",
+          [
+            [
+              663.3,
+              360.0
+            ],
+            [
+              405.0,
+              720.0
+            ],
+            0
+          ]
+        ],
+        [
+          40.83,
+          "single",
+          [
+            [
+              663.3,
+              360.0
+            ],
+            [
+              405.0,
+              720.0
+            ],
+            0
+          ]
+        ],
+        [
+          41.33,
+          "single",
+          [
+            [
+              923.7,
+              360.0
+            ],
+            [
+              405.0,
+              720.0
+            ],
+            0
+          ]
+        ],
+        [
+          41.83,
+          "single",
+          [
+            [
+              923.7,
+              360.0
+            ],
+            [
+              405.0,
+              720.0
+            ],
+            0
+          ]
+        ],
+        [
+          42.33,
+          "single",
+          [
+            [
+              923.7,
+              360.0
+            ],
+            [
+              405.0,
+              720.0
+            ],
+            0
+          ]
+        ],
+        [
+          42.83,
+          "single",
+          [
+            [
+              923.7,
+              360.0
+            ],
+            [
+              405.0,
+              720.0
+            ],
+            0
+          ]
+        ],
+        [
+          43.34,
+          "single",
+          [
+            [
+              923.7,
+              360.0
+            ],
+            [
+              405.0,
+              720.0
+            ],
+            0
+          ]
+        ],
+        [
+          43.84,
+          "single",
+          [
+            [
+              923.7,
+              360.0
+            ],
+            [
+              405.0,
+              720.0
+            ],
+            0
+          ]
+        ],
+        [
+          44.34,
+          "single",
+          [
+            [
+              923.7,
+              360.0
+            ],
+            [
+              405.0,
+              720.0
+            ],
+            0
+          ]
+        ]
+      ],
+      "lip_reader": true,
+      "diarization": false
+    },
+    "thumbnail": {
+      "t": 3.0,
+      "score": 6.84
+    }
+  },
+  "reasons": {
+    "hook": "Starts on a question or hook word",
+    "payoff": "Ends on a full sentence",
+    "emotion": "Emotional words",
+    "standalone": "Complete thought",
+    "topic_match": "5 topic keywords"
+  },
+  "topic": "learning, machine, world",
+  "description": "You realize just how amazing humans are, just how amazing your four-year-old is who can recognize faces. Machine learning has really been the beginning of a...",
+  "hashtags": [
+    "#shorts",
+    "#machine",
+    "#learning",
+    "#data",
+    "#computer"
+  ],
+  "key_words": [
+    "machine",
+    "learning",
+    "world"
+  ],
+  "wi": 280,
+  "wj": 404,
+  "emojis": [],
+  "hook": "",
+  "zooms": [],
+  "text": "You realize just how amazing humans are, just how amazing your four-year-old is who can recognize faces. Machine learning has really been the beginning of a big revolution in the field of speech recognition. To teach speech recognition how to interact with a noisy room, we use real-world sounds and we mix it into the examples that we already have. Is it cold outside? Is it cold outside? Is it cold outside? Now, no matter what the noise in the environment, our speech recognition systems can understand what you're saying. They can separate out one speaker from another. With machine learning, we have now an algorithm that learns how to simulate a human linguist. Lot of the language that we see today, it's very informal.",
+  "fact_check": {
+    "type": "theory",
+    "claims": [
+      {
+        "claim": "You realize just how amazing humans are, just how amazing your four-year-old is who can recognize faces.",
+        "status": "unverifiable",
+        "note": "Not checked by Claude yet."
+      }
+    ],
+    "scripture": [],
+    "red_flags": [],
+    "honest_title": "Theory: You realize just how amazing humans are, just how amazing...",
+    "verdict": "ok",
+    "summary": "Automatic check only (no Anthropic key): nothing obviously wrong, but claims were not verified.",
+    "checked_by": "heuristic"
+  },
+  "pick_method": "heuristic (no ANTHROPIC_API_KEY)",
+  "honest_title": "Theory: You realize just how amazing humans are, just how amazing...",
+  "rendered_at": 1789647744.3942966
+}

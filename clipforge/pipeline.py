@@ -4,7 +4,7 @@ import json
 import shutil
 import time
 from pathlib import Path
-from . import db, media, download, transcribe, moments, factcheck, render, captions, reframe, filler, effects
+from . import db, media, download, transcribe, moments, factcheck, render, captions, reframe, filler, effects, brand
 from .config import cfg as _cfg, output_size
 from .config import PROJECTS, cfg
 from .timeline import Timeline
@@ -31,7 +31,7 @@ def default_options() -> dict:
     return {"clips": int(cfg.get("moments.default_clips", 5)), "length": "auto",
             "keywords": list(cfg.get("moments.default_keywords", [])), "start": None, "end": None,
             "ratio": "9:16", "layout": "auto", "style": "auto", "emoji": True, "filler": cfg.get("filler.level", "light"),
-            "hook": True, "zooms": True, "progress_bar": True}
+            "hook": True, "zooms": True, "progress_bar": True, "template": "", "credit_name": None}
 
 
 def run_project(pid: str, progress) -> None:
@@ -100,7 +100,8 @@ def run_project(pid: str, progress) -> None:
                                                        "emoji": bool(opts.get("emoji", True)),
                                                        "filler": opts.get("filler", _cfg.get("filler.level", "light")),
                                                        "hook": bool(opts.get("hook", True)), "zooms": bool(opts.get("zooms", True)),
-                                                       "progress_bar": bool(opts.get("progress_bar", True))}})
+                                                       "progress_bar": bool(opts.get("progress_bar", True)),
+                                                       "template": opts.get("template") or ""}})
         clip_ids.append(cid)
     for i, cid in enumerate(clip_ids, start=1):
         base = 60 + 40 * (i - 1) / len(clip_ids)
@@ -127,6 +128,10 @@ def render_one(cid: str, progress=None) -> dict:
         work = pdir / "work" / cid
         ratio = settings.get("ratio", "9:16")
         tr = json.loads((pdir / "transcript.json").read_text())
+        template = brand.get(settings.get("template"))
+        tdata = template["data"]
+        popts = proj["options"] or {}
+        credit_name = popts.get("credit_name") if popts.get("credit_name") is not None else (proj.get("channel") or "")
 
         def prog(stage, pct=None, status=None):
             db.update("clips", cid, {"stage": stage, "progress": pct or 0})
@@ -158,12 +163,17 @@ def render_one(cid: str, progress=None) -> dict:
             zoom_fn = effects.ZoomFn(zooms) if zooms else None
         framer = reframe.SmartFramer(analysis, info["width"], info["height"], ow, oh,
                                      forced_layout=settings.get("layout", "auto"), zoom_fn=zoom_fn)
+        if tdata.get("intro_card") and settings.get("intro_card", True):
+            tl.lead_in = float(_cfg.get("cards.intro_seconds", 0.8))
+        if tdata.get("outro_card") and settings.get("outro_card", True):
+            tl.lead_out = float(_cfg.get("cards.outro_seconds", 1.6))
         hook_on = settings.get("hook", bool(_cfg.get("hook.enabled", True)))
         hook_text = (settings.get("hook_text") or data.get("hook") or effects.hook_text_from(clip["title"], data.get("text", ""))).strip()
         extra = None
         if hook_on and hook_text:
-            hstyle, hev = effects.hook_ass(hook_text, ow, oh, min(float(_cfg.get("hook.seconds", 3.0)), tl.duration - 0.5),
-                                          settings.get("hook_style") or None)
+            hstyle, hev = effects.hook_ass(hook_text, ow, oh, min(float(_cfg.get("hook.seconds", 3.0)), tl.speech_duration - 0.5),
+                                          {"style": settings.get("hook_style") or tdata.get("hook_style", "box"),
+                                           "box_color": tdata.get("accent", "#F5A524")}, offset=tl.lead_in)
             extra = ([hstyle], hev)
 
         # captions
@@ -172,6 +182,8 @@ def render_one(cid: str, progress=None) -> dict:
             words = captions.clip_words(tr["words"], tl)
             fc_type = (data.get("fact_check") or {}).get("type", "")
             style_name = settings.get("style") or "auto"
+            if style_name == "auto" and tdata.get("caption_preset", "auto") != "auto":
+                style_name = tdata["caption_preset"]
             if style_name == "auto":
                 style_name = _cfg.get("captions.faith_preset") if fc_type == "faith" else _cfg.get("captions.default_preset")
             st = captions.preset(style_name)
@@ -189,13 +201,26 @@ def render_one(cid: str, progress=None) -> dict:
         elif extra:
             subtitles = work / "captions.ass"
             subtitles.write_text(captions.build_ass([], ow, oh, captions.preset(None), ratio, extra=extra)[0])
-        if settings.get("progress_bar", bool(_cfg.get("progress_bar.enabled", True))):
-            overlay = effects.Compose([overlay, effects.ProgressBar(tl.duration, ow, oh, settings.get("accent") or None)])
+        extras = [overlay]
+        if settings.get("progress_bar", bool(tdata.get("progress_bar", True)) and bool(_cfg.get("progress_bar.enabled", True))):
+            extras.append(effects.ProgressBar(tl.duration, ow, oh, tdata.get("accent") or None))
+        wm_from = tl.lead_in + float(_cfg.get("hook.seconds", 3.0)) + 0.3 if (hook_on and hook_text) else tl.lead_in
+        extras += effects.brand_overlays(template, ow, oh, tl.duration, credit_name if settings.get("credit", True) else "",
+                                         offset=tl.lead_in, watermark_from=wm_from)
+        overlay = effects.Compose(extras)
+        intro_img = outro_img = None
+        if tl.lead_in > 0:
+            intro_img = effects.card_bgr(effects.card_image(template, ow, oh, tdata.get("watermark_text") or proj["title"][:30], ""))
+        if tl.lead_out > 0:
+            outro_img = effects.card_bgr(effects.card_image(template, ow, oh, tdata.get("outro_text") or "Follow for more",
+                                                            tdata.get("watermark_text") or ""))
             cap_info = {"style": st["name"], "words": len(words), "emojis": [o["emoji"] for o in em_overlays],
                         "lines": ass_text.count("Dialogue: 1,")}
             shutil.copy(subtitles, out_dir / f"clip_{clip['idx']:02d}.ass")
 
-        result = render.render_clip(src, tl, out, work, framer=framer, ratio=ratio, subtitles=subtitles, overlays=overlay, progress=prog)
+        result = render.render_clip(src, tl, out, work, framer=framer, ratio=ratio, subtitles=subtitles, overlays=overlay, progress=prog,
+                                    intro_card=intro_img, outro_card=outro_img)
+        result["template"] = {"id": template["id"], "name": template["name"], "credit": credit_name}
         result["captions"] = cap_info
         result["filler"] = {"level": level, "cuts": cuts, "removed_seconds": round(sum(c["e"] - c["s"] for c in cuts), 2)}
         result["zooms"] = zooms
@@ -204,7 +229,13 @@ def render_one(cid: str, progress=None) -> dict:
                              "keyframes": framer.keyframes, "lip_reader": analysis.get("lip_reader"),
                              "diarization": analysis.get("diarization")}
         thumb = out_dir / f"clip_{clip['idx']:02d}.jpg"
-        media.thumbnail(out, thumb, t=min(1.0, tl.duration / 2), width=540)
+        big = out_dir / f"clip_{clip['idx']:02d}_thumb.jpg"
+        try:
+            result["thumbnail"] = effects.pick_thumbnail(out, big, seconds=5.0 + tl.lead_in)
+            media.run(["ffmpeg", "-v", "error", "-y", "-i", big, "-vf", "scale=540:-2", "-q:v", "3", thumb])
+        except Exception as e:  # noqa: BLE001
+            db.log_error("thumbnail", str(e))
+            media.thumbnail(out, thumb, t=min(1.0, tl.duration / 2), width=540)
         record = {
             "id": cid, "project": proj["id"], "index": clip["idx"], "source": str(src), "title": clip["title"],
             "start": clip["start"], "end": clip["end"], "duration": result["duration"], "timeline": tl.as_list(),

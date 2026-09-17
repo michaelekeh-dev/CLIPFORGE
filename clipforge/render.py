@@ -55,8 +55,9 @@ def decode_frames(source: Path, start: float, end: float, fps: float, w: int, h:
 
 def render_clip(source: Path, tl: Timeline, out_path: Path, workdir: Path, framer: Framer | None = None,
                 ratio: str = "9:16", subtitles: Path | None = None, overlays=None, progress=None,
-                video_filters: list[str] | None = None) -> dict:
-    """Render the clip. `overlays(frame, t_src, t_out)` may draw on each output frame."""
+                video_filters: list[str] | None = None, intro_card=None, outro_card=None) -> dict:
+    """Render the clip. `overlays(frame, t_src, t_out)` may draw on each output frame.
+    intro_card / outro_card: BGR images shown for tl.lead_in / tl.lead_out seconds (cards fade into the video)."""
     workdir.mkdir(parents=True, exist_ok=True)
     info = media.probe(source)
     ow, oh = output_size(ratio)
@@ -90,18 +91,39 @@ def render_clip(source: Path, tl: Timeline, out_path: Path, workdir: Path, frame
     total = int(tl.duration * fps) or 1
     n = 0
     t_out = 0.0
+    last_frame = None
     try:
+        if tl.lead_in > 0 and intro_card is not None:
+            for _ in range(int(round(tl.lead_in * fps))):
+                out = intro_card.copy()
+                if overlays:
+                    out = overlays(out, tl.pieces[0][0], t_out)
+                enc.stdin.write(np.ascontiguousarray(out).tobytes())
+                n += 1
+                t_out = n / fps
         for (s, e) in tl.pieces:
             for img in decode_frames(source, s, e, fps, sw, sh):
                 t_src = s + (t_out - _piece_offset(tl, s))
                 out = framer.frame(img, t_src, t_out)
                 if overlays:
                     out = overlays(out, t_src, t_out)
+                last_frame = out
                 enc.stdin.write(np.ascontiguousarray(out).tobytes())
                 n += 1
                 t_out = n / fps
                 if progress and n % 30 == 0:
                     progress("Rendering: video", 100 * n / total)
+        if tl.lead_out > 0 and outro_card is not None:
+            base = cv2.GaussianBlur(last_frame, (0, 0), 12) if last_frame is not None else outro_card
+            k = int(round(tl.lead_out * fps))
+            for i in range(k):
+                a = min(1.0, i / max(1, int(0.4 * fps)))
+                out = cv2.addWeighted(outro_card, a, base, 1 - a, 0)
+                if overlays:
+                    out = overlays(out, tl.pieces[-1][1], t_out)
+                enc.stdin.write(np.ascontiguousarray(out).tobytes())
+                n += 1
+                t_out = n / fps
     except BrokenPipeError:
         pass
     finally:
@@ -117,7 +139,7 @@ def render_clip(source: Path, tl: Timeline, out_path: Path, workdir: Path, frame
 
 
 def _piece_offset(tl: Timeline, s: float) -> float:
-    acc = 0.0
+    acc = tl.lead_in
     for a, b in tl.pieces:
         if a == s:
             return acc

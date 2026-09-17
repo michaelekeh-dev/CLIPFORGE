@@ -235,3 +235,7 @@ progress_bar:
   enabled: true
   height: 8
   color: "#F5A524"
+
+cards:
+  intro_seconds: 0.8
+  outro_seconds: 1.6

@@ -111,3 +111,12 @@ code { background: var(--bg3); padding: .1em .35em; border-radius: 6px; font-siz
 .clip .tools .check { flex: none; }
 .clip .hook-row { display: flex; gap: 8px; align-items: center; }
 .clip .hook-row .input { padding: 8px 10px; font-size: .9rem; }
+.project-head .credit-row { flex-basis: 100%; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.project-head .credit-row label { display: flex; gap: 8px; align-items: center; flex: 1; }
+.project-head .credit-row .input { padding: 8px 10px; font-size: .9rem; max-width: 260px; }
+.head-actions { display: flex; gap: 8px; }
+.tlist { display: flex; flex-direction: column; gap: 12px; }
+.thead { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+.row { display: flex; gap: 8px; flex-wrap: wrap; }
+.input.color { padding: 4px; height: 44px; }
+.clip .thumb-link { font-size: .85rem; }
