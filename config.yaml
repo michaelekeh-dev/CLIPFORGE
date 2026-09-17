@@ -184,11 +184,13 @@ reframe:
   # Frames per second used to look for faces
   sample_fps: 5
   # Width the video is shrunk to while looking for faces (speed)
-  detect_width: 640
+  detect_width: 960
   # Faces smaller than this share of the frame height are ignored (people in the background)
   min_face_frac: 0.06
   # A face must appear in this share of a shot's frames to count
   min_coverage: 0.4
+  # if nobody is detected for this long inside a shot, that part becomes a 'whole picture' shot
+  lost_face_seconds: 2.0
   # PySceneDetect content threshold: lower = more cuts found
   scene_threshold: 27
   min_shot_seconds: 0.6
@@ -221,15 +223,15 @@ reframe:
 
 hook:
   enabled: true
-  # seconds the hook stays; 0 = the whole clip (what most viral podcast clips do)
-  seconds: 0
+  # seconds the hook stays at the start; 0 = the whole clip
+  seconds: 3.5
   font: Montserrat ExtraBold
   size: 100
   text_color: "#111111"
   box_color: "#FFFFFF"
   # top of the hook box as a share of the frame height
-  y_frac: 0.09
-  max_words: 12
+  y_frac: 0.10
+  max_words: 10
   max_lines: 4
   # smaller card on two-person (split) clips so it stays clear of the top face
   size_split: 80

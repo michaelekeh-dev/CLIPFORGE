@@ -68,7 +68,8 @@ def hook_ass(text: str, out_w: int, out_h: int, seconds: float, style: dict | No
         card = card.replace(f"\\an7\\pos({x0:.0f},{y - pad_y:.0f})",
                             f"\\fad(180,260)\\an7\\move({x0:.0f},{y - pad_y - int(60 * scale):.0f},{x0:.0f},{y - pad_y:.0f},0,260)")
         ev = (f"Dialogue: 3,{ass_time(offset)},{ass_time(end_t)},Hook,,0,0,0,,"
-              f"{{\\an8\\move({out_w // 2},{y - int(60 * scale)},{out_w // 2},{y},0,260)\\fad(180,260)}}{txt}")
+              f"{{\\an8\\move({out_w // 2},{y - int(60 * scale)},{out_w // 2},{y},0,260)\\fad(180,320)}}{txt}")
+        card = card.replace("\\fad(180,260)", "\\fad(180,320)")
         return style_line, [card, ev]
     if kind == "box":
         style_line = (f"Style: Hook,{st['font']},{size},{text_c},{text_c},{box_c},{box_c},0,0,0,0,100,100,0,0,3,{pad},0,8,40,40,0,1")
@@ -272,7 +273,7 @@ def brand_overlays(template: dict, out_w: int, out_h: int, duration: float, cred
     d = template.get("data", template)
     scale = out_w / 1080.0
     out = []
-    y = int(out_h * (0.05 if corner == "top-left" else 0.075))
+    y = int(out_h * 0.045)
     x_right = int(out_w * 0.94)
     if d.get("watermark_text"):
         im = text_image(d["watermark_text"], int(30 * scale), "#FFFFFF", "Montserrat SemiBold")
@@ -283,13 +284,14 @@ def brand_overlays(template: dict, out_w: int, out_h: int, duration: float, cred
         else:
             x = x_right - im.width - (logo.width + int(10 * scale) if logo else 0)
             x_logo = x_right - (logo.width if logo else 0)
-        out.append(ImageOverlay(im, x, y, watermark_from, duration + 1, fade=0.3, alpha=0.85))
+        wm_alpha = float(d.get("watermark_opacity", 0.5))
+        out.append(ImageOverlay(im, x, y, 0.0, duration + 1, fade=0.0, alpha=wm_alpha))
         if logo:
-            out.append(ImageOverlay(logo, x_logo, y - (logo.height - im.height) // 2, watermark_from, duration + 1, fade=0.3, alpha=0.95))
+            out.append(ImageOverlay(logo, x_logo, y - (logo.height - im.height) // 2, 0.0, duration + 1, fade=0.0, alpha=wm_alpha))
     elif d.get("logo"):
         logo = load_logo(d["logo"], int(44 * scale))
         if logo:
-            out.append(ImageOverlay(logo, x_right - logo.width, y, watermark_from, duration + 1, fade=0.3, alpha=0.95))
+            out.append(ImageOverlay(logo, x_right - logo.width, y, 0.0, duration + 1, fade=0.0, alpha=float(d.get("watermark_opacity", 0.5))))
     if d.get("credit", True) and credit_name:
         name = credit_name if credit_name.startswith("@") else "@" + credit_name.replace(" ", "")
         im = text_image("🎙 " + name, int(30 * scale), "#FFFFFF", "Montserrat SemiBold")

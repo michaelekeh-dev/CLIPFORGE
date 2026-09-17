@@ -208,9 +208,9 @@ def build_ass(words: list[dict], out_w: int, out_h: int, style: dict, ratio: str
     keys = {k.lower().strip(".,!?") for k in (key_words or [])}
     for w in words:
         w["key"] = re.sub(r"[^a-zA-Z']", "", w["w"]).lower() in keys
-    em_size = int(size * 1.0)
+    em_size = int(size * 0.95)
     space_w = max(1.0, measure.width(" "))
-    n_spacer = int(em_size / space_w + 0.999) + 1
+    n_spacer = int((em_size + 0.4 * space_w) / space_w + 0.999)
     spacer = "\\h" * n_spacer
     emoji_w = n_spacer * space_w
     lines = group_lines(words, measure, max_w, upper, int(style.get("words_per_line_max", c.get("words_per_line_max", 4))),
@@ -219,6 +219,15 @@ def build_ass(words: list[dict], out_w: int, out_h: int, style: dict, ratio: str
     for i, ln in enumerate(lines):
         nxt = lines[i + 1].start if i + 1 < len(lines) else ln.end + hold
         ln.end = min(ln.end + hold, max(ln.end, nxt - 0.02))
+        # an emoji belongs at the end of its line, never in the middle of a sentence
+        ems = [w.get("emoji") for w in ln.words if w.get("emoji")]
+        if ems:
+            for w in ln.words:
+                w["emoji"] = None
+            ln.words[-1]["emoji"] = ems[0]
+            ln.words[-1]["emoji_from"] = next(w["s"] for w in ln.words if True)
+            ln.text_widths = [measure.width((clean_word(w["w"]).upper() if upper else clean_word(w["w"]))) + (emoji_w if w.get("emoji") else 0.0) for w in ln.words]
+            ln.width = sum(ln.text_widths) + ln.space_w * (len(ln.words) - 1)
 
     primary = hex_to_ass(style["color"])
     highlight = hex_to_ass(style["highlight"])
@@ -300,9 +309,9 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
             sty = "CapBox" if box else "Cap"
             events.append(f"Dialogue: 1,{ass_time(ws)},{ass_time(we)},{sty},,0,0,0,,{{\\an5\\pos({out_w / 2:.0f},{y_c}){intro}}}{text}")
             if w.get("emoji"):
-                # the word's measured width includes the spacer; the emoji sits in that gap
-                gx = xs[k][1] - emoji_w + space_w * 0.5
-                overlays.append({"s": ws, "e": ln.end, "x": int(gx), "y": int(y_c - em_size / 2),
+                # the word's measured width includes the spacer; the emoji sits in that gap, centred on the caps
+                gx = xs[k][1] - emoji_w + space_w * 0.3
+                overlays.append({"s": ln.start, "e": ln.end, "x": int(gx), "y": int(y_c - em_size / 2 - size * 0.02),
                                  "emoji": w["emoji"], "size": em_size})
     if extra:
         events.extend(extra[1])

@@ -18,6 +18,7 @@ DEFAULT = {
     "credit": True,
     "progress_bar": True,
     "outro_text": "Follow for more",
+    "watermark_opacity": 0.5,
 }
 
 

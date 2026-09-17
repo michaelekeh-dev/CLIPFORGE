@@ -44,7 +44,7 @@ def detect_shots(source: Path, start: float, end: float) -> list[tuple[float, fl
 # ----------------------------------------------------------------------------- faces
 class FaceFinder:
     def __init__(self, w: int, h: int):
-        self.det = cv2.FaceDetectorYN.create(str(YUNET), "", (w, h), 0.6, 0.3, 50)
+        self.det = cv2.FaceDetectorYN.create(str(YUNET), "", (w, h), 0.55, 0.3, 50)
         self.w, self.h = w, h
 
     def __call__(self, img: np.ndarray) -> list[list[float]]:
@@ -169,6 +169,32 @@ def analyze(source: Path, start: float, end: float, workdir: Path, audio_wav: Pa
     lips.close()
 
     audio_rms = _audio_rms(audio_wav, start, end) if audio_wav else None
+    # split shots where the faces disappear for a while (camera pans away, person leaves): that part gets no tracks
+    lost = float(R.get("lost_face_seconds", 2.0))
+    refined = []
+    for (a, b) in shots:
+        fr = [f for f in frames if a - 0.5 / fps <= f["t"] < b]
+        times = [f["t"] for f in fr if any(x["h"] >= float(R.get("min_face_frac", 0.06)) * H for x in f["faces"])]
+        if not times:
+            refined.append((a, b))
+            continue
+        cur = a
+        if times[0] - a > lost:
+            refined.append((a, times[0]))
+            cur = times[0]
+        prev = times[0]
+        for t in times[1:]:
+            if t - prev > lost:
+                refined.append((cur, prev + 1 / fps))
+                refined.append((prev + 1 / fps, t))
+                cur = t
+            prev = t
+        if b - prev > lost:
+            refined.append((cur, prev + 1 / fps))
+            refined.append((prev + 1 / fps, b))
+        else:
+            refined.append((cur, b))
+    shots = [(round(a, 3), round(b, 3)) for a, b in refined if b - a > 0.2]
     out_shots = []
     for (a, b) in shots:
         fr = [f for f in frames if a - 0.5 / fps <= f["t"] < b]

@@ -224,7 +224,7 @@ def render_one(cid: str, progress=None) -> dict:
         hook_whole = bool(hook_on and hook_text) and not float(_cfg.get("hook.seconds", 0))
         wm_from = tl.lead_in + float(_cfg.get("hook.seconds", 0)) + 0.3 if (hook_on and hook_text and not hook_whole) else tl.lead_in
         extras += effects.brand_overlays(template, ow, oh, tl.duration, credit_name if settings.get("credit", True) else "",
-                                         offset=tl.lead_in, watermark_from=wm_from, corner="top-left" if hook_whole else "top-right")
+                                         offset=tl.lead_in)
         overlay = effects.Compose(extras)
         intro_img = outro_img = None
         if tl.lead_in > 0:
