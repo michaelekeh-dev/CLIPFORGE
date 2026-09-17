@@ -4,7 +4,7 @@ import json
 import shutil
 import time
 from pathlib import Path
-from . import db, media, download, transcribe, moments, factcheck, render, captions
+from . import db, media, download, transcribe, moments, factcheck, render, captions, reframe
 from .config import cfg as _cfg, output_size
 from .config import PROJECTS, cfg
 from .timeline import Timeline
@@ -129,6 +129,17 @@ def render_one(cid: str, progress=None) -> dict:
                 progress(stage, pct)
 
         work.mkdir(parents=True, exist_ok=True)
+        # smart reframe (faces, cuts, layout)
+        prog("Finding faces and camera cuts", 0)
+        info = media.probe(src)
+        ow, oh = output_size(ratio)
+        speech_wav = work / "speech16k.wav"
+        media.extract_audio(src, speech_wav, sr=16000, mono=True, start=tl.start, dur=tl.end - tl.start)
+        analysis = reframe.analyze(src, tl.start, tl.end, pdir / "analysis", audio_wav=speech_wav,
+                                   progress=lambda st, pct=None, status=None: prog(st, pct))
+        framer = reframe.SmartFramer(analysis, info["width"], info["height"], ow, oh,
+                                     forced_layout=settings.get("layout", "auto"))
+
         # captions
         subtitles, overlay, cap_info = None, None, {}
         if settings.get("captions", True):
@@ -139,12 +150,13 @@ def render_one(cid: str, progress=None) -> dict:
             if style_name == "auto":
                 style_name = _cfg.get("captions.faith_preset") if fc_type == "faith" else _cfg.get("captions.default_preset")
             st = captions.preset(style_name)
-            ow, oh = output_size(ratio)
             use_emoji = settings.get("emoji", bool(_cfg.get("captions.emoji", True)))
             if use_emoji:
                 captions.choose_emojis(words, float(_cfg.get("captions.emoji_every_seconds", 10)),
                                        set(data.get("key_words") or []), data.get("emojis"))
-            ass_text, em_overlays = captions.build_ass(words, ow, oh, st, ratio, key_words=data.get("key_words") or [])
+            split_share = sum(sh["end"] - sh["start"] for sh in analysis["shots"] if sh["layout"] == "split") / max(0.1, tl.end - tl.start)
+            y_frac = 0.5 if (split_share > 0.5 and ratio == "9:16" and settings.get("layout", "auto") in ("auto", "split")) else None
+            ass_text, em_overlays = captions.build_ass(words, ow, oh, st, ratio, key_words=data.get("key_words") or [], y_frac=y_frac)
             subtitles = work / "captions.ass"
             subtitles.write_text(ass_text)
             overlay = captions.EmojiOverlay(em_overlays) if em_overlays else None
@@ -152,8 +164,11 @@ def render_one(cid: str, progress=None) -> dict:
                         "lines": ass_text.count("Dialogue: 1,")}
             shutil.copy(subtitles, out_dir / f"clip_{clip['idx']:02d}.ass")
 
-        result = render.render_clip(src, tl, out, work, ratio=ratio, subtitles=subtitles, overlays=overlay, progress=prog)
+        result = render.render_clip(src, tl, out, work, framer=framer, ratio=ratio, subtitles=subtitles, overlays=overlay, progress=prog)
         result["captions"] = cap_info
+        result["reframe"] = {"layout_setting": settings.get("layout", "auto"), "shots": reframe.summary(analysis),
+                             "keyframes": framer.keyframes, "lip_reader": analysis.get("lip_reader"),
+                             "diarization": analysis.get("diarization")}
         thumb = out_dir / f"clip_{clip['idx']:02d}.jpg"
         media.thumbnail(out, thumb, t=min(1.0, tl.duration / 2), width=540)
         record = {

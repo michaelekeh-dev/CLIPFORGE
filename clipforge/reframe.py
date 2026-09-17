@@ -289,7 +289,8 @@ def speaker_turns(tracks: list[dict], a: float, b: float, audio_rms: dict | None
         k = np.array([0.25, 0.5, 0.25])
         scores = np.array([np.convolve(row, k, mode="same") for row in scores])
     turns = []
-    cur = int(np.argmax(scores.sum(axis=1)))  # most active overall starts
+    first = scores[:, :min(n, 4)].sum(axis=1)
+    cur = int(np.argmax(first)) if first.sum() > 0 else int(np.argmax(scores.sum(axis=1)))  # who talks first
     seg_start = a
     last_switch = a - 10
     min_gap = float(R.get("min_switch_seconds", 2.0))

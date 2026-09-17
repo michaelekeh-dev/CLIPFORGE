@@ -193,7 +193,7 @@ def choose_emojis(words: list[dict], every: float, key_words: set[str], suggesti
 
 
 def build_ass(words: list[dict], out_w: int, out_h: int, style: dict, ratio: str = "9:16",
-              key_words: list[str] | None = None) -> tuple[str, list[dict]]:
+              key_words: list[str] | None = None, y_frac: float | None = None) -> tuple[str, list[dict]]:
     """Returns (ass text, emoji overlays [{s, e, x, y, emoji, size}]). Words must already be in output time."""
     c = cfg.get("captions")
     scale = out_w / 1080.0 if ratio != "16:9" else out_h / 1080.0 * 0.85
@@ -202,7 +202,7 @@ def build_ass(words: list[dict], out_w: int, out_h: int, style: dict, ratio: str
     measure = Measurer(style["font"], size)
     max_w = out_w * float(c.get("max_width_frac", 0.82))
     yf = c.get("y_frac", {})
-    y_c = int(out_h * float(yf.get(ratio, 0.66) if isinstance(yf, dict) else yf))
+    y_c = int(out_h * float(y_frac if y_frac else (yf.get(ratio, 0.66) if isinstance(yf, dict) else yf)))
     keys = {k.lower().strip(".,!?") for k in (key_words or [])}
     for w in words:
         w["key"] = re.sub(r"[^a-zA-Z']", "", w["w"]).lower() in keys

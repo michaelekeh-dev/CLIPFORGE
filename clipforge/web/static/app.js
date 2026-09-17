@@ -76,6 +76,7 @@ const CF = (() => {
           <details><summary class="why">Why this clip</summary><ul class="why-list">${Object.entries(c.reasons || {}).map(([k, v]) => `<li><b>${esc(k.replace('_', ' '))}:</b> ${esc(v)}</li>`).join('')}</ul></details>
           <div class="tools">
             <select class="input style-select" title="Caption style">${styleOptions(c.settings.style || 'auto')}</select>
+            <select class="input layout-select" title="Framing">${['auto','single','split','wide'].map(l => `<option value="${l}" ${(c.settings.layout || 'auto') === l ? 'selected' : ''}>${{auto:'Auto framing', single:'One person', split:'Two people', wide:'Whole picture'}[l]}</option>`).join('')}</select>
             <label class="check small"><input type="checkbox" class="emoji-check" ${c.settings.emoji === false ? '' : 'checked'}> Emoji</label>
             <button class="btn secondary small rerender-btn" ${c.status === 'rendering' ? 'disabled' : ''}>Re-render</button>
           </div>
@@ -92,7 +93,7 @@ const CF = (() => {
         const rr2 = $('.rerender-btn', el); if (rr2) rr2.onclick = async () => {
           rr2.disabled = true;
           await api(`/api/clips/${c.id}/settings`, { method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ style: $('.style-select', el).value, emoji: $('.emoji-check', el).checked, render: true }) });
+            body: JSON.stringify({ style: $('.style-select', el).value, layout: $('.layout-select', el).value, emoji: $('.emoji-check', el).checked, render: true }) });
           toast('Rendering again…'); poll();
         };
         $('.copy', el).onclick = () => copy(`${c.title}\n\n${c.description}\n\n${(c.hashtags || []).join(' ')}`);

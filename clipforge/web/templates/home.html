@@ -41,6 +41,14 @@
             {% for p in presets %}<label class="preset"><input type="radio" name="style" value="{{ p.id }}"><span class="pv"><img src="{{ p.preview_url }}" alt="" loading="lazy"><b>{{ p.label }}</b></span></label>{% endfor %}
           </div>
         </div>
+        <label>Framing
+          <select class="input" name="layout">
+            <option value="auto">Auto (faces decide)</option>
+            <option value="single">One person, follow the speaker</option>
+            <option value="split">Two people, top and bottom</option>
+            <option value="wide">Whole picture with blurred edges</option>
+          </select>
+        </label>
         <label class="check"><input type="checkbox" name="emoji" checked> Emoji in captions</label>
       </div>
     </details>

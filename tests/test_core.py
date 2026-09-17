@@ -110,3 +110,39 @@ def test_clip_words_drop_half_outside():
     w = [{"w": "at.", "s": 9.7, "e": 9.95}, {"w": "You", "s": 10.0, "e": 10.3}]
     tl = Timeline.single(9.85, 20)
     assert [x["w"] for x in captions.clip_words(w, tl)] == ["You"]
+
+
+def test_spring_settles_without_overshoot():
+    from clipforge.reframe import Spring
+    sp = Spring(0.0, 0.5)
+    xs = [sp.step(100.0, 1 / 30) for _ in range(90)]
+    assert max(xs) <= 100.0 + 1e-6 and abs(xs[-1] - 100) < 2
+
+
+def test_choose_layout():
+    from clipforge.reframe import choose_layout
+    big = {"id": 0, "cx": 300, "cy": 300, "h": 200, "size": 0.28, "coverage": 1}
+    big2 = {"id": 1, "cx": 900, "cy": 300, "h": 190, "size": 0.26, "coverage": 1}
+    tiny = {"id": 2, "cx": 900, "cy": 300, "h": 50, "size": 0.07, "coverage": 1}
+    assert choose_layout([big], 1280, 720) == "single"
+    assert choose_layout([big, big2], 1280, 720) == "split"
+    assert choose_layout([big, tiny], 1280, 720) == "single"
+    assert choose_layout([], 1280, 720) == "wide"
+    assert choose_layout([big, big2, tiny], 1280, 720) in ("wide", "speaker")
+
+
+def test_speaker_turns_switch_at_most_every_2s():
+    from clipforge.reframe import speaker_turns
+    # two faces; face 0 moves its lips for 0-4s, face 1 for 4-8s, 5 samples per second
+    def pts(active_from, active_to):
+        out = []
+        for i in range(40):
+            t = i / 5
+            m = (0.1 if i % 2 else 0.4) if active_from <= t < active_to else 0.1
+            out.append([t, 100, 100, 50, 60, m])
+        return out
+    tracks = [{"id": 0, "pts": pts(0, 4)}, {"id": 1, "pts": pts(4, 8)}]
+    turns = speaker_turns(tracks, 0.0, 8.0, None)
+    ids = [t[2] for t in turns]
+    assert ids[0] == 0 and ids[-1] == 1
+    assert all(b - a >= 2.0 - 1e-6 for a, b, _, _ in turns[:-1])

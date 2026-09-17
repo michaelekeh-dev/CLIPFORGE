@@ -245,12 +245,13 @@ def _parse_time(s: str | None) -> float | None:
 @app.post("/api/projects")
 async def api_create_project(request: Request, url: str = Form(""), clips: int = Form(5), length: str = Form("auto"),
                              keywords: str = Form(""), start: str = Form(""), end: str = Form(""),
-                             style: str = Form("auto"), emoji: str = Form("on"),
+                             style: str = Form("auto"), emoji: str = Form("on"), layout: str = Form("auto"),
                              file: UploadFile | None = File(None)):
     opts = pipeline.default_options()
     opts.update({"clips": max(1, min(20, int(clips))), "length": length if length in ("auto", "short", "medium", "long") else "auto",
                  "keywords": [k.strip() for k in keywords.split(",") if k.strip()], "start": _parse_time(start), "end": _parse_time(end),
-                 "style": style, "emoji": emoji in ("on", "true", "1")})
+                 "style": style, "emoji": emoji in ("on", "true", "1"),
+                 "layout": layout if layout in ("auto", "single", "split", "wide") else "auto"})
     title = ""
     if file is not None and file.filename:
         UPLOADS.mkdir(parents=True, exist_ok=True)
