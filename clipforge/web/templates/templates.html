@@ -28,7 +28,7 @@
       <label>Watermark text<input class="input" name="watermark_text" value="{{ t.data.watermark_text }}" placeholder="@YourChannel"></label>
       <label>Accent colour<input class="input color" type="color" name="accent" value="{{ t.data.accent }}"></label>
       <label>Caption style<select class="input" name="caption_preset"><option value="auto" {% if t.data.caption_preset == 'auto' %}selected{% endif %}>Auto</option>{% for p in presets %}<option value="{{ p.id }}" {% if t.data.caption_preset == p.id %}selected{% endif %}>{{ p.label }}</option>{% endfor %}</select></label>
-      <label>Hook style<select class="input" name="hook_style">{% for h in ['box','bar','plain'] %}<option value="{{ h }}" {% if t.data.hook_style == h %}selected{% endif %}>{{ h|capitalize }}</option>{% endfor %}</select></label>
+      <label>Hook style<select class="input" name="hook_style">{% for h in ['card','box','bar','plain'] %}<option value="{{ h }}" {% if t.data.hook_style == h %}selected{% endif %}>{{ {'card':'White card (big)','box':'Small colour box','bar':'Full-width bar','plain':'Plain text'}[h] }}</option>{% endfor %}</select></label>
       <label>Logo (PNG)<input class="input" type="file" name="logo" accept="image/*">{% if t.data.logo %}<span class="muted small">Current logo kept unless you pick a new one</span>{% endif %}</label>
       <label>Outro text<input class="input" name="outro_text" value="{{ t.data.outro_text }}"></label>
       <div class="checks span2">
@@ -52,7 +52,7 @@
       <label>Watermark text<input class="input" name="watermark_text" placeholder="@YourChannel"></label>
       <label>Accent colour<input class="input color" type="color" name="accent" value="#F5A524"></label>
       <label>Caption style<select class="input" name="caption_preset"><option value="auto">Auto</option>{% for p in presets %}<option value="{{ p.id }}">{{ p.label }}</option>{% endfor %}</select></label>
-      <label>Hook style<select class="input" name="hook_style"><option value="box">Box</option><option value="bar">Bar</option><option value="plain">Plain</option></select></label>
+      <label>Hook style<select class="input" name="hook_style"><option value="card">White card (big)</option><option value="box">Small colour box</option><option value="bar">Full-width bar</option><option value="plain">Plain text</option></select></label>
       <label>Logo (PNG)<input class="input" type="file" name="logo" accept="image/*"></label>
       <label>Outro text<input class="input" name="outro_text" value="Follow for more"></label>
       <div class="checks span2">

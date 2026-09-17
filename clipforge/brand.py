@@ -12,7 +12,7 @@ DEFAULT = {
     "logo": "",
     "accent": "#F5A524",
     "caption_preset": "auto",
-    "hook_style": "box",
+    "hook_style": "card",
     "intro_card": False,
     "outro_card": False,
     "credit": True,

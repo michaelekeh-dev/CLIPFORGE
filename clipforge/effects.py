@@ -43,15 +43,33 @@ def hook_ass(text: str, out_w: int, out_h: int, seconds: float, style: dict | No
         cur.append(w)
     if cur:
         lines.append(" ".join(cur))
-    lines = lines[:2]
-    if len(lines) == 2 and m.width(lines[1]) > max_w:
-        lines[1] = lines[1][: int(len(lines[1]) * max_w / m.width(lines[1]))].rsplit(" ", 1)[0] + "..."
+    max_lines = int(st.get("max_lines", 2)) if st.get("style") == "card" else 2
+    lines = lines[:max_lines]
+    if lines and m.width(lines[-1]) > max_w:
+        lines[-1] = lines[-1][: int(len(lines[-1]) * max_w / m.width(lines[-1]))].rsplit(" ", 1)[0] + "..."
     txt = "\\N".join(l.replace("{", "(").replace("}", ")") for l in lines)
     y = int(out_h * float(st.get("y_frac", 0.10)))
     kind = st.get("style", "box")
     text_c = hex_to_ass(st.get("text_color", "#111111"))
     box_c = hex_to_ass(st.get("box_color", "#F5A524"))
     pad = int(18 * scale)
+    if kind == "card":
+        # one big white rounded card: drawn as a shape on a lower layer so the corners are round and lines stay together
+        pad_x, pad_y = int(34 * scale), int(26 * scale)
+        line_h = size * 1.18
+        widths = [m.width(l) for l in lines] or [0]
+        cw = max(widths) + 2 * pad_x
+        chh = line_h * len(lines) + 2 * pad_y
+        x0 = (out_w - cw) / 2
+        style_line = (f"Style: Hook,{st['font']},{size},{text_c},{text_c},{box_c},{box_c},0,0,0,0,100,100,0,0,1,0,0,8,40,40,0,1")
+        from .captions import _box_event
+        end_t = offset + seconds
+        card = _box_event(2, offset, end_t, x0, y - pad_y, cw, chh, st.get("box_color", "#FFFFFF"), radius=22 * scale)
+        card = card.replace(f"\\an7\\pos({x0:.0f},{y - pad_y:.0f})",
+                            f"\\fad(180,260)\\an7\\move({x0:.0f},{y - pad_y - int(60 * scale):.0f},{x0:.0f},{y - pad_y:.0f},0,260)")
+        ev = (f"Dialogue: 3,{ass_time(offset)},{ass_time(end_t)},Hook,,0,0,0,,"
+              f"{{\\an8\\move({out_w // 2},{y - int(60 * scale)},{out_w // 2},{y},0,260)\\fad(180,260)}}{txt}")
+        return style_line, [card, ev]
     if kind == "box":
         style_line = (f"Style: Hook,{st['font']},{size},{text_c},{text_c},{box_c},{box_c},0,0,0,0,100,100,0,0,3,{pad},0,8,40,40,0,1")
         tags = ""
@@ -249,20 +267,25 @@ def load_logo(path: str, height: int) -> Image.Image | None:
 
 
 def brand_overlays(template: dict, out_w: int, out_h: int, duration: float, credit_name: str = "", offset: float = 0.0,
-                   watermark_from: float = 0.0) -> list:
+                   watermark_from: float = 0.0, corner: str = "top-right") -> list:
     """Watermark + logo (whole clip, top right) and the source credit (bottom, first 3s)."""
     d = template.get("data", template)
     scale = out_w / 1080.0
     out = []
-    y = int(out_h * 0.075)
+    y = int(out_h * (0.05 if corner == "top-left" else 0.075))
     x_right = int(out_w * 0.94)
     if d.get("watermark_text"):
         im = text_image(d["watermark_text"], int(30 * scale), "#FFFFFF", "Montserrat SemiBold")
         logo = load_logo(d["logo"], int(40 * scale)) if d.get("logo") else None
-        x = x_right - im.width - (logo.width + int(10 * scale) if logo else 0)
+        if corner == "top-left":
+            x_logo = int(out_w * 0.06)
+            x = x_logo + (logo.width + int(10 * scale) if logo else 0)
+        else:
+            x = x_right - im.width - (logo.width + int(10 * scale) if logo else 0)
+            x_logo = x_right - (logo.width if logo else 0)
         out.append(ImageOverlay(im, x, y, watermark_from, duration + 1, fade=0.3, alpha=0.85))
         if logo:
-            out.append(ImageOverlay(logo, x_right - logo.width, y - (logo.height - im.height) // 2, watermark_from, duration + 1, fade=0.3, alpha=0.95))
+            out.append(ImageOverlay(logo, x_logo, y - (logo.height - im.height) // 2, watermark_from, duration + 1, fade=0.3, alpha=0.95))
     elif d.get("logo"):
         logo = load_logo(d["logo"], int(44 * scale))
         if logo:

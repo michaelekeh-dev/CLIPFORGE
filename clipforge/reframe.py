@@ -480,14 +480,22 @@ class SmartFramer:
         p = pts[-1]
         return p[1], p[2], p[4]
 
-    def crop_size(self, aspect: float, zoom: float = 1.0) -> tuple[float, float]:
-        """Largest source crop with the given aspect (w/h), divided by zoom."""
+    def crop_size(self, aspect: float, zoom: float = 1.0, face_h: float | None = None) -> tuple[float, float]:
+        """Source crop with the given aspect (w/h). With face_h the crop is tightened so the face fills
+        about face_height_frac of the crop (never below min_crop_frac of the source), then divided by zoom."""
         if self.sw / self.sh > aspect:
             ch = self.sh
             cw = ch * aspect
         else:
             cw = self.sw
             ch = cw / aspect
+        if face_h:
+            want = face_h / max(0.05, float(R.get("face_height_frac", 0.20)))
+            floor = ch * float(R.get("min_crop_frac", 0.62))
+            ch2 = max(floor, min(ch, want))
+            cw2 = ch2 * aspect
+            if cw2 <= self.sw:
+                cw, ch = cw2, ch2
         return cw / zoom, ch / zoom
 
     def target_for(self, track: dict, t: float, cw: float, ch: float, y_frac: float, spring_x: Spring, spring_y: Spring,
@@ -572,17 +580,20 @@ class SmartFramer:
             top, bottom = tr[0], tr[1]
             half_h = (self.oh - int(R.get("divider_px", 6))) // 2
             aspect = self.ow / half_h
-            cw, ch = self.crop_size(aspect, zoom)
-            yf = float(R.get("split_face_y_frac", 0.45))
-            c1 = self.target_for(top, t, cw, ch, yf, self.sx, self.sy, dt, new_shot)
+            cw, ch = self.crop_size(aspect, zoom, face_h=max(top["h"], bottom["h"]) * 1.15)
+            yf = float(R.get("split_face_y_frac", 0.42))
+            yf_top = float(R.get("split_top_face_y_frac", 0.64))
+            ch1 = min(ch, float(R.get("split_top_crop_frac", 0.55)) * self.sh)
+            cw1 = ch1 * aspect
+            c1 = self.target_for(top, t, cw1, ch1, yf_top, self.sx, self.sy, dt, new_shot)
             c2 = self.target_for(bottom, t, cw, ch, yf, self.sx2, self.sy2, dt, new_shot)
-            a = self.crop(img, c1[0], c1[1], cw, ch, self.ow, half_h)
+            a = self.crop(img, c1[0], c1[1], cw1, ch1, self.ow, half_h)
             b = self.crop(img, c2[0], c2[1], cw, ch, self.ow, half_h)
             out = np.empty((self.oh, self.ow, 3), dtype=np.uint8)
             out[:] = hex_bgr(R.get("divider_color", "#0f1115"))
             out[:half_h] = a
             out[self.oh - half_h:] = b
-            self._key(t_out, "split", [c1, c2, (cw, ch)])
+            self._key(t_out, "split", [c1, c2, (cw1, ch1), (cw, ch)])
             return out
         # single: follow the speaker
         track = self.speaker_track(shot, t)
@@ -593,7 +604,7 @@ class SmartFramer:
         elif t_out - self.switch_t < float(R.get("switch_ease_seconds", 0.35)) * 2:
             fast = True
         self.last_speaker = track["id"]
-        cw, ch = self.crop_size(self.ow / self.oh, zoom)
+        cw, ch = self.crop_size(self.ow / self.oh, zoom, face_h=track["h"])
         cx, cy = self.target_for(track, t, cw, ch, float(R.get("face_y_frac", 0.42)), self.sx, self.sy, dt, new_shot, fast)
         out = self.crop(img, cx, cy, cw, ch, self.ow, self.oh)
         self._key(t_out, "single", [(cx, cy), (cw, ch), track["id"]])

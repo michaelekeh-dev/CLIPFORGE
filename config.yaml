@@ -70,7 +70,7 @@ render:
     "16:9": [1920, 1080]
 
 captions:
-  default_preset: bold_pop
+  default_preset: viral
   # Preset used automatically when the fact check says the clip is faith content
   faith_preset: faith
   words_per_line_max: 4
@@ -83,9 +83,24 @@ captions:
   gap_split: 0.6
   hold_after: 0.25
   emoji: true
-  emoji_every_seconds: 10
+  emoji_every_seconds: 5
   emoji_font: /usr/share/fonts/truetype/noto/NotoColorEmoji.ttf
   presets:
+    viral:
+      label: Viral
+      font: Montserrat Black
+      size: 104
+      uppercase: true
+      color: "#FFFFFF"
+      highlight: "#2BFF4A"
+      keyword: "#FFD400"
+      outline: 8
+      outline_color: "#000000"
+      shadow: 3
+      shadow_color: "#000000"
+      pop: 112
+      y_frac: 0.60
+      words_per_line_max: 3
     bold_pop:
       label: Bold pop
       font: Montserrat ExtraBold
@@ -178,9 +193,16 @@ reframe:
   scene_threshold: 27
   min_shot_seconds: 0.6
   # Where the face centre sits in a single crop (0 = top, 1 = bottom)
-  face_y_frac: 0.42
-  # Same for each half of a split crop
-  split_face_y_frac: 0.45
+  face_y_frac: 0.40
+  # Tight framing: the crop is sized so the face is about this share of the crop height
+  face_height_frac: 0.20
+  # ...but never crop below this share of the source height (keeps it sharp)
+  min_crop_frac: 0.62
+  # Same for each half of a split crop: the top face sits lower so the hook card never covers it
+  split_face_y_frac: 0.42
+  split_top_face_y_frac: 0.72
+  # the top half is cropped tighter (share of the source height) so the face can sit below the hook card
+  split_top_crop_frac: 0.5
   # How much of the crop width the face may drift before the camera follows (steady camera feel)
   dead_zone_frac: 0.10
   # Seconds for the smooth follow to settle
@@ -195,20 +217,24 @@ reframe:
   divider_px: 6
   divider_color: "#0f1115"
   # What to do on shots with 3+ faces when layout is auto: wide | speaker
-  three_plus: wide
+  three_plus: speaker
 
 hook:
   enabled: true
-  seconds: 3.0
+  # seconds the hook stays; 0 = the whole clip (what most viral podcast clips do)
+  seconds: 0
   font: Montserrat ExtraBold
-  size: 60
+  size: 100
   text_color: "#111111"
-  box_color: "#F5A524"
+  box_color: "#FFFFFF"
   # top of the hook box as a share of the frame height
-  y_frac: 0.10
-  max_words: 8
-  # box | bar | plain
-  style: box
+  y_frac: 0.09
+  max_words: 12
+  max_lines: 4
+  # smaller card on two-person (split) clips so it stays clear of the top face
+  size_split: 80
+  # card | box | bar | plain   (card = big white rounded card like the popular podcast clips)
+  style: card
 
 zooms:
   enabled: true

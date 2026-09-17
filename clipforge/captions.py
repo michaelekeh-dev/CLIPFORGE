@@ -203,7 +203,8 @@ def build_ass(words: list[dict], out_w: int, out_h: int, style: dict, ratio: str
     measure = Measurer(style["font"], size)
     max_w = out_w * float(c.get("max_width_frac", 0.82))
     yf = c.get("y_frac", {})
-    y_c = int(out_h * float(y_frac if y_frac else (yf.get(ratio, 0.66) if isinstance(yf, dict) else yf)))
+    base_y = style.get("y_frac") if (ratio == "9:16" and style.get("y_frac")) else (yf.get(ratio, 0.66) if isinstance(yf, dict) else yf)
+    y_c = int(out_h * float(y_frac if y_frac else base_y))
     keys = {k.lower().strip(".,!?") for k in (key_words or [])}
     for w in words:
         w["key"] = re.sub(r"[^a-zA-Z']", "", w["w"]).lower() in keys
@@ -212,7 +213,7 @@ def build_ass(words: list[dict], out_w: int, out_h: int, style: dict, ratio: str
     n_spacer = int(em_size / space_w + 0.999) + 1
     spacer = "\\h" * n_spacer
     emoji_w = n_spacer * space_w
-    lines = group_lines(words, measure, max_w, upper, int(c.get("words_per_line_max", 4)),
+    lines = group_lines(words, measure, max_w, upper, int(style.get("words_per_line_max", c.get("words_per_line_max", 4))),
                         int(c.get("words_per_line_min", 2)), float(c.get("gap_split", 0.6)), emoji_w=emoji_w)
     hold = float(c.get("hold_after", 0.25))
     for i, ln in enumerate(lines):

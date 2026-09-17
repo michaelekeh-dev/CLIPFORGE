@@ -176,9 +176,13 @@ def render_one(cid: str, progress=None) -> dict:
         hook_text = (settings.get("hook_text") or data.get("hook") or effects.hook_text_from(clip["title"], data.get("text", ""))).strip()
         extra = None
         if hook_on and hook_text:
-            hstyle, hev = effects.hook_ass(hook_text, ow, oh, min(float(_cfg.get("hook.seconds", 3.0)), tl.speech_duration - 0.5),
-                                          {"style": settings.get("hook_style") or tdata.get("hook_style", "box"),
-                                           "box_color": tdata.get("accent", "#F5A524")}, offset=tl.lead_in)
+            hook_secs = float(_cfg.get("hook.seconds", 0)) or tl.speech_duration
+            split_share_h = sum(sh["end"] - sh["start"] for sh in analysis["shots"] if sh["layout"] == "split") / max(0.1, tl.end - tl.start)
+            hook_extra = {"size": int(_cfg.get("hook.size_split", 80))} if split_share_h > 0.5 else {}
+            hstyle, hev = effects.hook_ass(hook_text, ow, oh, min(hook_secs, tl.speech_duration - 0.3),
+                                          {**hook_extra, "style": settings.get("hook_style") or tdata.get("hook_style", "card"),
+                                           "box_color": _cfg.get("hook.box_color", "#FFFFFF") if (settings.get("hook_style") or tdata.get("hook_style", "card")) == "card" else tdata.get("accent", "#F5A524")},
+                                          offset=tl.lead_in)
             extra = ([hstyle], hev)
 
         # captions
@@ -217,9 +221,10 @@ def render_one(cid: str, progress=None) -> dict:
         extras = [broll_frames, overlay]
         if settings.get("progress_bar", bool(tdata.get("progress_bar", True)) and bool(_cfg.get("progress_bar.enabled", True))):
             extras.append(effects.ProgressBar(tl.duration, ow, oh, tdata.get("accent") or None))
-        wm_from = tl.lead_in + float(_cfg.get("hook.seconds", 3.0)) + 0.3 if (hook_on and hook_text) else tl.lead_in
+        hook_whole = bool(hook_on and hook_text) and not float(_cfg.get("hook.seconds", 0))
+        wm_from = tl.lead_in + float(_cfg.get("hook.seconds", 0)) + 0.3 if (hook_on and hook_text and not hook_whole) else tl.lead_in
         extras += effects.brand_overlays(template, ow, oh, tl.duration, credit_name if settings.get("credit", True) else "",
-                                         offset=tl.lead_in, watermark_from=wm_from)
+                                         offset=tl.lead_in, watermark_from=wm_from, corner="top-left" if hook_whole else "top-right")
         overlay = effects.Compose(extras)
         intro_img = outro_img = None
         if tl.lead_in > 0:

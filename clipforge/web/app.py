@@ -208,7 +208,7 @@ async def api_save_template(request: Request, id: str = Form(""), name: str = Fo
     if logo is not None and logo.filename:
         logo_path = brand.save_logo(await logo.read(), Path(logo.filename).suffix.lower())
     data = {"watermark_text": watermark_text.strip(), "logo": logo_path, "accent": accent, "caption_preset": caption_preset,
-            "hook_style": hook_style if hook_style in ("box", "bar", "plain") else "box", "intro_card": intro_card == "on",
+            "hook_style": hook_style if hook_style in ("card", "box", "bar", "plain") else "card", "intro_card": intro_card == "on",
             "outro_card": outro_card == "on", "credit": credit == "on", "progress_bar": progress_bar == "on", "outro_text": outro_text.strip()}
     tid = brand.save(id or None, name.strip(), data, make_default=(make_default == "on"))
     return RedirectResponse("/templates", status_code=303)
