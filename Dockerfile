@@ -15,5 +15,6 @@ RUN pip install -r requirements.txt
 COPY . .
 VOLUME ["/data"]
 EXPOSE 8000
-HEALTHCHECK --interval=30s --timeout=5s --retries=3 CMD curl -fs http://localhost:8000/health || exit 1
-CMD ["python", "-m", "clipforge", "serve", "--host", "0.0.0.0", "--port", "8000"]
+HEALTHCHECK --interval=30s --timeout=5s --retries=3 CMD curl -fs http://localhost:${PORT:-8000}/health || exit 1
+# PORT is set by hosts like Railway; defaults to 8000
+CMD ["sh", "-c", "python -m clipforge serve --host 0.0.0.0 --port ${PORT:-8000}"]

@@ -23,6 +23,22 @@ If you ever want faster renders you can move the same Docker image to a machine 
 (`pip install -r requirements-gpu.txt` in the Dockerfile and uncomment the GPU lines in `docker-compose.yml`);
 Whisper large-v3 and pyannote then switch on by themselves.
 
+## Option A: Railway (easiest if you already use it)
+
+Same app, no server to manage. About $10 to $15 a month depending on how much you render.
+
+1. Push this repo to GitHub (it is already there) and open https://railway.app → **New Project** → **Deploy from GitHub repo** → pick `clipforge`. Railway finds the `Dockerfile` and builds it (5 to 10 minutes the first time).
+2. In the service, open **Variables** and add: `APP_PASSWORD`, `ANTHROPIC_API_KEY`, `APP_HTTPS=1`, `CLIPFORGE_DATA_DIR=/data`, and optionally `PEXELS_API_KEY`, `HF_TOKEN`, `YTDLP_COOKIES=/data/cookies.txt`.
+3. Open **Settings** → **Volumes** → **Add volume**, mount path `/data`, size 20 GB or more (source videos are big; they are deleted after 7 days).
+4. **Settings** → **Networking** → **Generate domain**. Open it on your phone, log in, add to home screen.
+5. Cookies: in the service **Shell** tab (or `railway shell`), paste the cookies file content into `/data/cookies.txt`:
+   `cat > /data/cookies.txt` then paste, then Ctrl+D. Set `YTDLP_COOKIES=/data/cookies.txt` in Variables.
+6. Updates: every `git push` redeploys. Logs are in the **Deployments** tab. Restarts on crash are on by default.
+
+Keep the service on the Hobby plan or higher (8 GB RAM); the speech model needs about 3 GB while transcribing.
+
+## Option B: your own server (Hetzner)
+
 ## 1. Create the server (Hetzner)
 
 1. Go to https://console.hetzner.cloud and create an account (email, then add a payment method under *Billing*).

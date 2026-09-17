@@ -86,7 +86,8 @@ def serve(argv):
     ap = argparse.ArgumentParser(prog="clipforge serve")
     from .config import cfg
     ap.add_argument("--host", default=cfg.get("app.host", "0.0.0.0"))
-    ap.add_argument("--port", type=int, default=int(cfg.get("app.port", 8000)))
+    import os
+    ap.add_argument("--port", type=int, default=int(os.environ.get("PORT") or cfg.get("app.port", 8000)))
     ap.add_argument("--reload", action="store_true")
     args = ap.parse_args(argv)
     import uvicorn
