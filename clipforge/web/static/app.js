@@ -74,15 +74,27 @@ const CF = (() => {
           <div class="meta"><span class="score">${c.score}</span><button class="badge" title="Fact check">${c.badge} ${esc(c.fact_check.type || 'check')}</button><span>${fmt(c.duration)} · ${fmt(c.start)}–${fmt(c.end)}</span></div>
           <div class="title">${esc(c.title)}</div>
           <details><summary class="why">Why this clip</summary><ul class="why-list">${Object.entries(c.reasons || {}).map(([k, v]) => `<li><b>${esc(k.replace('_', ' '))}:</b> ${esc(v)}</li>`).join('')}</ul></details>
+          <div class="tools">
+            <select class="input style-select" title="Caption style">${styleOptions(c.settings.style || 'auto')}</select>
+            <label class="check small"><input type="checkbox" class="emoji-check" ${c.settings.emoji === false ? '' : 'checked'}> Emoji</label>
+            <button class="btn secondary small rerender-btn" ${c.status === 'rendering' ? 'disabled' : ''}>Re-render</button>
+          </div>
           <div class="actions">
             <a class="btn primary small" href="${c.download_url}" ${c.status === 'done' ? '' : 'aria-disabled="true" style="opacity:.5;pointer-events:none"'}>Download</a>
             <button class="btn secondary small copy">Copy title + tags</button>
           </div>
         </div>
       </article>`;
+    const styleOptions = (cur) => ['<option value="auto">Auto style</option>'].concat((window.CF_PRESETS || []).map(p => `<option value="${p.id}" ${p.id === cur ? 'selected' : ''}>${esc(p.label)}</option>`)).join('');
     const bind = (p) => {
       p.clips.forEach(c => {
         const el = $(`[data-clip="${c.id}"]`); if (!el) return;
+        const rr2 = $('.rerender-btn', el); if (rr2) rr2.onclick = async () => {
+          rr2.disabled = true;
+          await api(`/api/clips/${c.id}/settings`, { method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ style: $('.style-select', el).value, emoji: $('.emoji-check', el).checked, render: true }) });
+          toast('Rendering again…'); poll();
+        };
         $('.copy', el).onclick = () => copy(`${c.title}\n\n${c.description}\n\n${(c.hashtags || []).join(' ')}`);
         $('.badge', el).onclick = () => showFact(c);
         const rr = $('.rerender', el); if (rr) rr.onclick = () => api(`/api/clips/${c.id}/render`, { method: 'POST' }).then(poll);

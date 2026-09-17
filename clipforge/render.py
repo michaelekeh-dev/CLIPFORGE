@@ -6,7 +6,7 @@ from pathlib import Path
 import numpy as np
 import cv2
 from . import media, audio
-from .config import cfg, output_size
+from .config import cfg, output_size, ASSETS
 from .timeline import Timeline
 
 
@@ -75,7 +75,7 @@ def render_clip(source: Path, tl: Timeline, out_path: Path, workdir: Path, frame
 
     vf = list(video_filters or [])
     if subtitles:
-        vf.append(f"ass={_esc(subtitles)}")
+        vf.append(f"ass={_esc(subtitles)}:fontsdir={_esc(ASSETS / 'fonts')}")
     cmd = ["ffmpeg", "-v", "error", "-y", "-nostdin",
            "-f", "rawvideo", "-pix_fmt", "bgr24", "-s", f"{ow}x{oh}", "-r", f"{fps}", "-i", "pipe:0",
            "-i", str(wav),

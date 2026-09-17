@@ -9,8 +9,8 @@ from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse, File
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from itsdangerous import URLSafeTimedSerializer, BadSignature
-from .. import db, pipeline, factcheck
-from ..config import cfg, env, PROJECTS, UPLOADS, ROOT, device
+from .. import db, pipeline, factcheck, captions
+from ..config import cfg, env, PROJECTS, UPLOADS, ROOT, CACHE, device
 from ..jobs import runner
 from .. import __version__
 
@@ -107,7 +107,7 @@ def logout():
 @app.get("/", response_class=HTMLResponse)
 def home(request: Request):
     return page(request, "home.html", projects=list_projects(), defaults=pipeline.default_options(),
-                lengths=cfg.get("moments.lengths", {}))
+                lengths=cfg.get("moments.lengths", {}), presets=caption_presets())
 
 
 @app.get("/project/{pid}", response_class=HTMLResponse)
@@ -115,7 +115,49 @@ def project_page(request: Request, pid: str):
     p = project_json(pid)
     if not p:
         raise HTTPException(404)
-    return page(request, "project.html", project=p)
+    return page(request, "project.html", project=p, presets=caption_presets())
+
+
+def caption_presets() -> list[dict]:
+    out = []
+    pdir = CACHE / "previews"
+    pdir.mkdir(parents=True, exist_ok=True)
+    for p in captions.preset_names():
+        png = pdir / f"{p['id']}.png"
+        if not png.exists():
+            try:
+                captions.render_preview(p["id"], png)
+            except Exception as e:  # noqa: BLE001
+                db.log_error("preview", str(e))
+        out.append({**p, "preview_url": f"/previews/{p['id']}.png" if png.exists() else ""})
+    return out
+
+
+@app.get("/previews/{name}.png")
+def preview_png(name: str):
+    f = CACHE / "previews" / f"{name}.png"
+    if not f.exists():
+        raise HTTPException(404)
+    return FileResponse(f)
+
+
+@app.get("/api/captions/presets")
+def api_presets():
+    return {"presets": caption_presets()}
+
+
+@app.post("/api/clips/{cid}/settings")
+async def api_clip_settings(cid: str, request: Request):
+    c = db.loads(db.row("SELECT * FROM clips WHERE id=?", (cid,)), "settings")
+    if not c:
+        raise HTTPException(404)
+    body = await request.json()
+    allowed = {"style", "emoji", "ratio", "layout", "captions", "hook", "hook_text", "zooms", "filler", "broll", "template", "progress_bar"}
+    new = {**(c["settings"] or {}), **{k: v for k, v in body.items() if k in allowed}}
+    db.update("clips", cid, {"settings": new})
+    if body.get("render"):
+        runner.submit("clips", cid, lambda prog: pipeline.render_one(cid, prog))
+    return {"ok": True, "settings": new}
 
 
 @app.get("/health")
@@ -203,10 +245,12 @@ def _parse_time(s: str | None) -> float | None:
 @app.post("/api/projects")
 async def api_create_project(request: Request, url: str = Form(""), clips: int = Form(5), length: str = Form("auto"),
                              keywords: str = Form(""), start: str = Form(""), end: str = Form(""),
+                             style: str = Form("auto"), emoji: str = Form("on"),
                              file: UploadFile | None = File(None)):
     opts = pipeline.default_options()
     opts.update({"clips": max(1, min(20, int(clips))), "length": length if length in ("auto", "short", "medium", "long") else "auto",
-                 "keywords": [k.strip() for k in keywords.split(",") if k.strip()], "start": _parse_time(start), "end": _parse_time(end)})
+                 "keywords": [k.strip() for k in keywords.split(",") if k.strip()], "start": _parse_time(start), "end": _parse_time(end),
+                 "style": style, "emoji": emoji in ("on", "true", "1")})
     title = ""
     if file is not None and file.filename:
         UPLOADS.mkdir(parents=True, exist_ok=True)

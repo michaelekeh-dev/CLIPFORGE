@@ -94,3 +94,16 @@ code { background: var(--bg3); padding: .1em .35em; border-radius: 6px; font-siz
 .pill.ok, .pill.well-supported { color: var(--ok); } .pill.disputed, .pill.unverifiable, .pill.needs { color: var(--warn); } .pill.false, .pill.skip { color: var(--bad); }
 .toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%) translateY(20px); background: var(--bg3); border: 1px solid var(--line); padding: 10px 16px; border-radius: 12px; opacity: 0; transition: all .25s; pointer-events: none; z-index: 30; font-size: .9rem; }
 .toast.show { opacity: 1; transform: translateX(-50%); }
+
+.presets { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 6px; scroll-snap-type: x mandatory; }
+.preset { flex: none; scroll-snap-align: start; cursor: pointer; }
+.preset input { display: none; }
+.preset .pv { display: flex; flex-direction: column; align-items: center; gap: 6px; width: 150px; padding: 8px; border-radius: 12px; border: 2px solid var(--line); background: var(--bg3); font-size: .85rem; transition: border .15s; text-align: center; }
+.preset .pv img { width: 134px; height: 60px; object-fit: cover; object-position: center; border-radius: 8px; }
+.preset .pv.auto { height: 100%; justify-content: center; min-height: 96px; }
+.preset .pv small { color: var(--muted); font-size: .72rem; line-height: 1.2; }
+.preset input:checked + .pv { border-color: var(--accent); }
+.check { display: flex; flex-direction: row !important; align-items: center; gap: 8px; }
+.check input { width: 20px; height: 20px; accent-color: var(--accent); }
+.clip .tools { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.clip .tools select { flex: 1; padding: 8px 10px; font-size: .9rem; }

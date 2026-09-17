@@ -4,7 +4,8 @@ import json
 import shutil
 import time
 from pathlib import Path
-from . import db, media, download, transcribe, moments, factcheck, render
+from . import db, media, download, transcribe, moments, factcheck, render, captions
+from .config import cfg as _cfg, output_size
 from .config import PROJECTS, cfg
 from .timeline import Timeline
 
@@ -29,7 +30,7 @@ def create_project(source: str, options: dict, title: str = "") -> str:
 def default_options() -> dict:
     return {"clips": int(cfg.get("moments.default_clips", 5)), "length": "auto",
             "keywords": list(cfg.get("moments.default_keywords", [])), "start": None, "end": None,
-            "ratio": "9:16", "layout": "auto", "style": "auto"}
+            "ratio": "9:16", "layout": "auto", "style": "auto", "emoji": True}
 
 
 def run_project(pid: str, progress) -> None:
@@ -94,7 +95,8 @@ def run_project(pid: str, progress) -> None:
         db.insert("clips", {"id": cid, "project_id": pid, "idx": i, "start": m["start"], "end": m["end"],
                             "score": m["score"], "title": data["honest_title"], "status": "pending",
                             "data": data, "settings": {"ratio": opts.get("ratio", "9:16"), "layout": opts.get("layout", "auto"),
-                                                       "style": opts.get("style", "auto")}})
+                                                       "style": opts.get("style", "auto"),
+                                                       "emoji": bool(opts.get("emoji", True))}})
         clip_ids.append(cid)
     for i, cid in enumerate(clip_ids, start=1):
         base = 60 + 40 * (i - 1) / len(clip_ids)
@@ -126,7 +128,32 @@ def render_one(cid: str, progress=None) -> dict:
             if progress:
                 progress(stage, pct)
 
-        result = render.render_clip(src, tl, out, work, ratio=ratio, progress=prog)
+        work.mkdir(parents=True, exist_ok=True)
+        # captions
+        subtitles, overlay, cap_info = None, None, {}
+        if settings.get("captions", True):
+            tr = json.loads((pdir / "transcript.json").read_text())
+            words = captions.clip_words(tr["words"], tl)
+            fc_type = (data.get("fact_check") or {}).get("type", "")
+            style_name = settings.get("style") or "auto"
+            if style_name == "auto":
+                style_name = _cfg.get("captions.faith_preset") if fc_type == "faith" else _cfg.get("captions.default_preset")
+            st = captions.preset(style_name)
+            ow, oh = output_size(ratio)
+            use_emoji = settings.get("emoji", bool(_cfg.get("captions.emoji", True)))
+            if use_emoji:
+                captions.choose_emojis(words, float(_cfg.get("captions.emoji_every_seconds", 10)),
+                                       set(data.get("key_words") or []), data.get("emojis"))
+            ass_text, em_overlays = captions.build_ass(words, ow, oh, st, ratio, key_words=data.get("key_words") or [])
+            subtitles = work / "captions.ass"
+            subtitles.write_text(ass_text)
+            overlay = captions.EmojiOverlay(em_overlays) if em_overlays else None
+            cap_info = {"style": st["name"], "words": len(words), "emojis": [o["emoji"] for o in em_overlays],
+                        "lines": ass_text.count("Dialogue: 1,")}
+            shutil.copy(subtitles, out_dir / f"clip_{clip['idx']:02d}.ass")
+
+        result = render.render_clip(src, tl, out, work, ratio=ratio, subtitles=subtitles, overlays=overlay, progress=prog)
+        result["captions"] = cap_info
         thumb = out_dir / f"clip_{clip['idx']:02d}.jpg"
         media.thumbnail(out, thumb, t=min(1.0, tl.duration / 2), width=540)
         record = {

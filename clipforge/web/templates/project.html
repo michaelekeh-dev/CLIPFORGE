@@ -40,4 +40,4 @@
 
 <div id="modal" class="modal hidden"><div class="modal-card"><button class="close" id="modalClose">✕</button><div id="modalBody"></div></div></div>
 {% endblock %}
-{% block scripts %}<script>CF.project({{ project.id|tojson }});</script>{% endblock %}
+{% block scripts %}<script>window.CF_PRESETS = {{ presets|tojson }}; CF.project({{ project.id|tojson }});</script>{% endblock %}

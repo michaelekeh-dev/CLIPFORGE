@@ -23,6 +23,7 @@ def main(argv=None):
     ap.add_argument("--layout", default="auto", help="auto | single | split | wide")
     ap.add_argument("--style", default="auto", help="caption preset, e.g. bold_pop, clean, faith")
     ap.add_argument("--ratio", default="9:16", choices=["9:16", "1:1", "16:9"])
+    ap.add_argument("--no-emoji", action="store_true", help="no emoji in captions")
     ap.add_argument("--out", default="output", help="output folder (default ./output)")
     args = ap.parse_args(argv)
 
@@ -33,7 +34,7 @@ def main(argv=None):
     if args.clips:
         opts["clips"] = args.clips
     opts.update({"length": args.length, "start": args.start, "end": args.end, "layout": args.layout,
-                 "style": args.style, "ratio": args.ratio})
+                 "style": args.style, "ratio": args.ratio, "emoji": not args.no_emoji})
     if args.keywords:
         opts["keywords"] = [k.strip() for k in args.keywords.split(",") if k.strip()]
     src = args.source

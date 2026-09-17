@@ -1,0 +1,105 @@
+{
+  "id": "c_0b89ea23580c",
+  "project": "p_584bec2bb4ed",
+  "index": 1,
+  "source": "/home/user/CLIPFORGE/data/projects/p_584bec2bb4ed/source.mp4",
+  "title": "The real world is actually very messy",
+  "start": 42.3,
+  "end": 76.97,
+  "duration": 34.67,
+  "timeline": [
+    [
+      42.3,
+      76.97
+    ]
+  ],
+  "score": 99,
+  "settings": {
+    "ratio": "9:16",
+    "layout": "auto",
+    "style": "auto",
+    "emoji": true
+  },
+  "render": {
+    "frames": 833,
+    "fps": 23.976,
+    "width": 1080,
+    "height": 1920,
+    "duration": 34.67,
+    "loudness": {
+      "input_i": "-24.30",
+      "input_tp": "-8.39",
+      "input_lra": "2.00",
+      "input_thresh": "-34.56",
+      "output_i": "-14.11",
+      "output_tp": "-1.50",
+      "output_lra": "2.20",
+      "output_thresh": "-24.36",
+      "normalization_type": "dynamic",
+      "target_offset": "0.11"
+    },
+    "captions": {
+      "style": "bold_pop",
+      "words": 100,
+      "emojis": [
+        "🌍",
+        "🤖"
+      ],
+      "lines": 100
+    }
+  },
+  "reasons": {
+    "hook": "Starts on a question or hook word",
+    "payoff": "Ends on a full sentence",
+    "emotion": "Calm delivery",
+    "standalone": "Complete thought",
+    "topic_match": "9 topic keywords"
+  },
+  "topic": "learning, machine, world",
+  "description": "The real world is actually very messy. Hard logical rules are not the way to solve real world problems. So, machine learning is all about learning from...",
+  "hashtags": [
+    "#shorts",
+    "#machine",
+    "#learning",
+    "#data",
+    "#computer"
+  ],
+  "key_words": [
+    "world",
+    "world",
+    "machine"
+  ],
+  "wi": 129,
+  "wj": 228,
+  "emojis": [],
+  "text": "The real world is actually very messy. Hard logical rules are not the way to solve real world problems. So, machine learning is all about learning from examples. Rather than writing500,000 lines of code, we instead have the machine learn from observations about the world. And we looked through a bunch of these examples in the machine learning algorithm. Maybe millions, maybe billions, maybe even trillions, to identify the patterns and generalize from there. In the task of image recognition, we've been able to train models to take the pixels of an image and from those pixels learn high-level features.",
+  "fact_check": {
+    "type": "entertainment",
+    "claims": [
+      {
+        "claim": "The real world is actually very messy.",
+        "status": "unverifiable",
+        "note": "Not checked by Claude yet."
+      },
+      {
+        "claim": "Hard logical rules are not the way to solve real world problems.",
+        "status": "unverifiable",
+        "note": "Not checked by Claude yet."
+      },
+      {
+        "claim": "So, machine learning is all about learning from examples.",
+        "status": "unverifiable",
+        "note": "Not checked by Claude yet."
+      }
+    ],
+    "scripture": [],
+    "red_flags": [],
+    "honest_title": "The real world is actually very messy",
+    "verdict": "ok",
+    "summary": "Automatic check only (no Anthropic key): nothing obviously wrong, but claims were not verified.",
+    "checked_by": "heuristic"
+  },
+  "pick_method": "heuristic (no ANTHROPIC_API_KEY)",
+  "honest_title": "The real world is actually very messy",
+  "rendered_at": 1789646034.6786551
+}

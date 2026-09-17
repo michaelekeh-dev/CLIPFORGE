@@ -84,3 +84,29 @@ def test_crossfade_has_no_click(tmp_path):
     y = audio._read(out)
     assert abs(len(y) / sr - tl.duration) < 0.02
     assert np.max(np.abs(np.diff(y[:, 0]))) < 0.25  # no jumps larger than a normal 440 Hz sample step
+
+
+def test_caption_lines_and_timing():
+    from clipforge import captions
+    w = words_from("You realize just how amazing humans are. Machine learning has begun a big revolution here", step=0.3)
+    tl = Timeline.single(0.0, 6.0)
+    cw = captions.clip_words(w, tl)
+    captions.choose_emojis(cw, 10, set(), None)
+    ass, overlays = captions.build_ass(cw, 1080, 1920, captions.preset("bold_pop"), "9:16", key_words=["machine"])
+    events = [l for l in ass.splitlines() if l.startswith("Dialogue: 1,")]
+    assert len(events) == len(cw)  # one event per spoken word
+    # every event's active word colour is the highlight or keyword colour, lines have 2-4 words
+    for e in events:
+        text = e.split(",,")[-1]
+        n_words = text.count("{\\r}")
+        assert 1 <= n_words <= 4
+    assert any(o["emoji"] == "🤖" for o in overlays)  # 'machine' gets an emoji
+    # captions sit in the lower-middle third, never in the bottom 20%
+    assert "\\pos(540,1267)" in ass
+
+
+def test_clip_words_drop_half_outside():
+    from clipforge import captions
+    w = [{"w": "at.", "s": 9.7, "e": 9.95}, {"w": "You", "s": 10.0, "e": 10.3}]
+    tl = Timeline.single(9.85, 20)
+    assert [x["w"] for x in captions.clip_words(w, tl)] == ["You"]
