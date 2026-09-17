@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="hero card">
+  <h1>Paste a link. Get Shorts.</h1>
+  <form id="newProject" class="new-project" enctype="multipart/form-data">
+    <div class="link-row">
+      <input class="input big" type="url" name="url" id="url" placeholder="Paste a YouTube link" inputmode="url">
+      <label class="btn secondary big file-btn">
+        <input type="file" name="file" id="file" accept="video/*,.mp4,.mov,.mkv,.webm,.m4v">
+        Upload a video
+      </label>
+    </div>
+    <p id="fileName" class="muted small"></p>
+    <details class="options">
+      <summary>Options</summary>
+      <div class="grid">
+        <label>Number of clips
+          <input class="input" type="number" name="clips" value="{{ defaults.clips }}" min="1" max="20">
+        </label>
+        <label>Clip length
+          <select class="input" name="length">
+            <option value="auto">Auto</option>
+            <option value="short">Under 30s</option>
+            <option value="medium">30 to 60s</option>
+            <option value="long">60 to 90s</option>
+          </select>
+        </label>
+        <label>Use from (mm:ss)
+          <input class="input" type="text" name="start" placeholder="0:00" inputmode="numeric">
+        </label>
+        <label>Use until (mm:ss)
+          <input class="input" type="text" name="end" placeholder="end" inputmode="numeric">
+        </label>
+        <label class="span2">Topic keywords
+          <input class="input" type="text" name="keywords" value="{{ defaults.keywords|join(', ') }}">
+        </label>
+      </div>
+    </details>
+    <button class="btn primary big" type="submit" id="startBtn">Make clips</button>
+    <div id="uploadBar" class="bar hidden"><div></div></div>
+  </form>
+</section>
+
+<section>
+  <h2>Your projects</h2>
+  <div id="projects" class="projects">
+    {% for p in projects %}
+    <a class="project card" href="/project/{{ p.id }}" data-id="{{ p.id }}">
+      <div class="thumb">{% if p.thumb_url %}<img src="{{ p.thumb_url }}" alt="">{% else %}<div class="ph">▶</div>{% endif %}</div>
+      <div class="pinfo">
+        <div class="ptitle">{{ p.title }}</div>
+        <div class="pmeta muted small">
+          <span class="status s-{{ p.status }}">{{ p.status if p.status != 'running' else p.stage }}</span>
+          {% if p.clip_count %} · {{ p.clip_count }} clips{% endif %}
+          {% if p.duration %} · {{ (p.duration // 60)|int }} min{% endif %}
+        </div>
+        {% if p.status in ('running','queued') %}<div class="bar"><div style="width:{{ p.progress }}%"></div></div>{% endif %}
+      </div>
+    </a>
+    {% else %}
+    <p class="muted">No projects yet. Paste a link above to start.</p>
+    {% endfor %}
+  </div>
+</section>
+{% endblock %}
+{% block scripts %}<script>CF.home();</script>{% endblock %}

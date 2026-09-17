@@ -1,0 +1,78 @@
+{
+  "id": "c_1792c190edfc",
+  "project": "p_69c3ae6ee1dc",
+  "index": 3,
+  "source": "/home/user/CLIPFORGE/data/projects/p_69c3ae6ee1dc/source.mp4",
+  "title": "The more you see machine learning and the kinds of things...",
+  "start": 253.04,
+  "end": 297.07,
+  "duration": 44.03,
+  "timeline": [
+    [
+      253.04,
+      297.07
+    ]
+  ],
+  "score": 93,
+  "settings": {
+    "ratio": "9:16",
+    "layout": "auto",
+    "style": "auto"
+  },
+  "render": {
+    "frames": 1056,
+    "fps": 23.976,
+    "width": 1080,
+    "height": 1920,
+    "duration": 44.03,
+    "loudness": {
+      "input_i": "-24.87",
+      "input_tp": "-8.65",
+      "input_lra": "2.70",
+      "input_thresh": "-35.02",
+      "output_i": "-14.12",
+      "output_tp": "-1.50",
+      "output_lra": "2.00",
+      "output_thresh": "-24.28",
+      "normalization_type": "dynamic",
+      "target_offset": "0.12"
+    }
+  },
+  "reasons": {
+    "hook": "Starts on a question or hook word",
+    "payoff": "Ends on a full sentence",
+    "emotion": "Calm delivery",
+    "standalone": "Complete thought",
+    "topic_match": "7 topic keywords"
+  },
+  "topic": "computer, learning, machine",
+  "description": "The more you see machine learning and the kinds of things it can do, the more you see opportunity for it to improve people's lives. We can use machine learning...",
+  "hashtags": [
+    "#shorts",
+    "#machine",
+    "#learning",
+    "#data",
+    "#computer"
+  ],
+  "key_words": [
+    "machine",
+    "learning",
+    "machine"
+  ],
+  "wi": 736,
+  "wj": 868,
+  "text": "The more you see machine learning and the kinds of things it can do, the more you see opportunity for it to improve people's lives. We can use machine learning to save power at significant scales, even track the spread of diseases and epidemics. We could use a computer vision model for everyone who's visually impaired. We could make speech recognizer for everyone on the planet and drastically improve the experience of millions and billions of people. I don't see any area of science or even of human endeavor that learn systems can't help with. If you'd asked me a few years ago if a computer would be able to do this anytime soon, I would have said I don't really think so. It's very, very empowering to imagine what's going to come.",
+  "fact_check": {
+    "type": "opinion",
+    "claims": [],
+    "scripture": [],
+    "red_flags": [],
+    "honest_title": "The more you see machine learning and the kinds of things...",
+    "verdict": "ok",
+    "summary": "Automatic check only (no Anthropic key): nothing obviously wrong, but claims were not verified.",
+    "checked_by": "heuristic"
+  },
+  "pick_method": "heuristic (no ANTHROPIC_API_KEY)",
+  "honest_title": "The more you see machine learning and the kinds of things...",
+  "rendered_at": 1789645286.3932307
+}

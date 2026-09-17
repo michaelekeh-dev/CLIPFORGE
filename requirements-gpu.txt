@@ -1,0 +1,7 @@
+# Extra packages for a machine with an NVIDIA GPU (speaker detection + whisper large-v3 on CUDA).
+# Install after requirements.txt:  pip install -r requirements-gpu.txt
+torch>=2.2
+torchaudio>=2.2
+pyannote.audio>=3.1
+nvidia-cublas-cu12
+nvidia-cudnn-cu12

@@ -1,0 +1,84 @@
+{
+  "id": "c_d08ced05726f",
+  "project": "p_69c3ae6ee1dc",
+  "index": 2,
+  "source": "/home/user/CLIPFORGE/data/projects/p_69c3ae6ee1dc/source.mp4",
+  "title": "You realize just how amazing humans are, just how amazing...",
+  "start": 90.84,
+  "end": 111.98,
+  "duration": 21.14,
+  "timeline": [
+    [
+      90.84,
+      111.98
+    ]
+  ],
+  "score": 99,
+  "settings": {
+    "ratio": "9:16",
+    "layout": "auto",
+    "style": "auto"
+  },
+  "render": {
+    "frames": 507,
+    "fps": 23.976,
+    "width": 1080,
+    "height": 1920,
+    "duration": 21.14,
+    "loudness": {
+      "input_i": "-24.64",
+      "input_tp": "-9.25",
+      "input_lra": "2.80",
+      "input_thresh": "-34.67",
+      "output_i": "-14.28",
+      "output_tp": "-1.50",
+      "output_lra": "2.80",
+      "output_thresh": "-24.29",
+      "normalization_type": "dynamic",
+      "target_offset": "0.28"
+    }
+  },
+  "reasons": {
+    "hook": "Starts on a question or hook word",
+    "payoff": "Ends on a full sentence",
+    "emotion": "Emotional words",
+    "standalone": "Complete thought",
+    "topic_match": "3 topic keywords"
+  },
+  "topic": "learning, machine, world",
+  "description": "You realize just how amazing humans are, just how amazing your four-year-old is who can recognize faces. Machine learning has really been the beginning of a...",
+  "hashtags": [
+    "#shorts",
+    "#machine",
+    "#learning",
+    "#data",
+    "#computer"
+  ],
+  "key_words": [
+    "machine",
+    "learning",
+    "world"
+  ],
+  "wi": 280,
+  "wj": 339,
+  "text": "You realize just how amazing humans are, just how amazing your four-year-old is who can recognize faces. Machine learning has really been the beginning of a big revolution in the field of speech recognition. To teach speech recognition how to interact with a noisy room, we use real-world sounds and we mix it into the examples that we already have.",
+  "fact_check": {
+    "type": "entertainment",
+    "claims": [
+      {
+        "claim": "You realize just how amazing humans are, just how amazing your four-year-old is who can recognize faces.",
+        "status": "unverifiable",
+        "note": "Not checked by Claude yet."
+      }
+    ],
+    "scripture": [],
+    "red_flags": [],
+    "honest_title": "You realize just how amazing humans are, just how amazing...",
+    "verdict": "ok",
+    "summary": "Automatic check only (no Anthropic key): nothing obviously wrong, but claims were not verified.",
+    "checked_by": "heuristic"
+  },
+  "pick_method": "heuristic (no ANTHROPIC_API_KEY)",
+  "honest_title": "You realize just how amazing humans are, just how amazing...",
+  "rendered_at": 1789645266.709686
+}

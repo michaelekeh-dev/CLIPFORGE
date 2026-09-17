@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}{{ project.title }} · CLIPFORGE{% endblock %}
+{% block nav %}<a class="muted" href="/">All projects</a>{% endblock %}
+{% block content %}
+<section class="card project-head" id="head">
+  <div class="thumb small">{% if project.thumb_url %}<img src="{{ project.thumb_url }}" alt="">{% endif %}</div>
+  <div>
+    <h1 id="ptitle">{{ project.title }}</h1>
+    <p class="muted small">{% if project.channel %}{{ project.channel }} · {% endif %}<span id="pmeta"></span></p>
+  </div>
+  <div class="head-actions">
+    <button class="btn danger small" id="deleteBtn">Delete</button>
+  </div>
+</section>
+
+<section id="progress" class="card progress hidden">
+  <div class="stages">
+    <div class="stage" data-key="Downloading">Downloading</div>
+    <div class="stage" data-key="Transcribing">Transcribing</div>
+    <div class="stage" data-key="Finding">Finding best moments</div>
+    <div class="stage" data-key="Rendering">Rendering</div>
+  </div>
+  <div class="bar big"><div id="pbar"></div></div>
+  <p id="pstage" class="muted"></p>
+</section>
+
+<section id="errorBox" class="card error-box hidden">
+  <h3>Something went wrong</h3>
+  <p id="perror"></p>
+  <div class="row">
+    <button class="btn primary" id="retryBtn">Try again</button>
+    <a class="btn secondary" href="/">Upload the file instead</a>
+  </div>
+</section>
+
+<section>
+  <h2 id="clipsTitle">Clips</h2>
+  <div id="clips" class="clips"></div>
+</section>
+
+<div id="modal" class="modal hidden"><div class="modal-card"><button class="close" id="modalClose">✕</button><div id="modalBody"></div></div></div>
+{% endblock %}
+{% block scripts %}<script>CF.project({{ project.id|tojson }});</script>{% endblock %}

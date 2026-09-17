@@ -1,0 +1,70 @@
+# CLIPFORGE settings. Everything tunable lives here. Secrets live in .env.
+
+app:
+  name: CLIPFORGE
+  # Bind address for the web app
+  host: 0.0.0.0
+  port: 8000
+  # How many render jobs run at the same time. 1 is right for a small CPU box.
+  workers: 1
+  # Source videos older than this are deleted automatically (clips are kept).
+  delete_sources_after_days: 7
+  # Set true when the app is served over https (cookie gets the Secure flag)
+  https: false
+
+download:
+  max_height: 1080
+  retries: 3
+  # Seconds a download may take before it is treated as blocked
+  timeout: 1800
+
+transcribe:
+  # auto | whisper | parakeet
+  # auto = whisper large-v3 on a GPU, Parakeet (fast, accurate, no Hugging Face needed) on a CPU
+  backend: auto
+  whisper_model_gpu: large-v3
+  whisper_model_cpu: small
+  language: en
+  # Parakeet (NVIDIA, via sherpa-onnx). Downloaded from GitHub the first time.
+  parakeet_model: sherpa-onnx-nemo-parakeet-tdt-0.6b-v2-int8
+  parakeet_url: https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-nemo-parakeet-tdt-0.6b-v2-int8.tar.bz2
+  chunk_seconds: 30
+
+llm:
+  # Model used to pick moments, titles, hooks, zooms and B-roll ideas
+  pick_model: claude-sonnet-5
+  # Model used for the fact check
+  check_model: claude-haiku-4-5
+  # Transcript text sent per request (seconds of video)
+  chunk_seconds: 1200
+  # Candidates asked for per chunk
+  candidates_per_chunk: 8
+  max_tokens: 8000
+
+moments:
+  default_clips: 5
+  # Length presets in seconds: auto picks whatever reads best inside min..max
+  lengths:
+    auto:   {min: 15, max: 90}
+    short:  {min: 10, max: 30}
+    medium: {min: 30, max: 60}
+    long:   {min: 60, max: 90}
+  # Padding added around the snapped words
+  pad_before: 0.15
+  pad_after: 0.35
+  default_keywords: [God, Jesus, Bible, prophecy, faith, heaven, theory, history, aliens, ancient]
+
+render:
+  width: 1080
+  height: 1920
+  fps: 30
+  crf: 20
+  preset: veryfast
+  audio_bitrate: 160k
+  # Target loudness (LUFS) and true peak (dBTP)
+  loudness: -14
+  true_peak: -1.5
+  ratios:
+    "9:16": [1080, 1920]
+    "1:1":  [1080, 1080]
+    "16:9": [1920, 1080]

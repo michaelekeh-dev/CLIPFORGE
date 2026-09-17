@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0f1115">
+<title>{% block title %}CLIPFORGE{% endblock %}</title>
+<link rel="stylesheet" href="/static/app.css?v={{ version }}">
+<link rel="icon" href="/static/icon.svg" type="image/svg+xml">
+</head>
+<body>
+<header class="top">
+  <a class="brand" href="/"><span class="logo">▶</span> CLIPFORGE</a>
+  <nav>
+    {% block nav %}{% endblock %}
+    {% if has_password %}<a class="muted" href="/logout">Log out</a>{% endif %}
+  </nav>
+</header>
+<main class="wrap">
+{% if not llm_live %}<div class="notice">AI moment picking is off: add <code>ANTHROPIC_API_KEY</code> to <code>.env</code>. Clips are picked by a simple keyword rule for now.</div>{% endif %}
+{% block content %}{% endblock %}
+</main>
+<div id="toast" class="toast"></div>
+<script src="/static/app.js?v={{ version }}"></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

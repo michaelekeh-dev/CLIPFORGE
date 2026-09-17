@@ -1,0 +1,14 @@
+__pycache__/
+*.pyc
+.env
+data/
+output/
+!samples/
+
+!samples/**/*.jpg
+!samples/**/*.json
+!samples/**/*.md
+*.log
+.pytest_cache/
+node_modules/
+.DS_Store
