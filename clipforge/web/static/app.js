@@ -66,13 +66,14 @@ const CF = (() => {
     };
     const clipCard = (c) => `
       <article class="card clip" data-clip="${c.id}">
-        <div class="player">
+        <div class="player" style="view-transition-name: clip-${c.id}">
           ${c.status === 'done' && c.video_url ? `<video src="${c.video_url}" poster="${c.thumb_url}" controls playsinline preload="metadata"></video>`
             : `${c.thumb_url ? `<img src="${c.thumb_url}" alt="">` : ''}<div class="rendering">${c.status === 'error' ? `<div>⚠️ ${esc(c.error)}</div><button class="btn secondary small rerender">Try again</button>` : `<div class="spinner"></div><div class="muted small">${esc(c.stage || 'Waiting to render')}</div><div class="bar cbar"><div style="width:${c.progress}%"></div></div>`}</div>`}
         </div>
         <div class="body">
           <div class="meta"><span class="score">${c.score}</span><button class="badge" title="Fact check">${c.badge} ${esc(c.fact_check.type || 'check')}</button><span>${fmt(c.duration)} · ${fmt(c.start)}–${fmt(c.end)}</span></div>
-          <div class="title">${esc(c.title)}</div>
+          <a class="title" href="/clip/${c.id}">${esc(c.title)}</a>
+          <a class="btn secondary small edit-link" href="/clip/${c.id}">✎ Edit clip</a>
           <details><summary class="why">Why this clip</summary><ul class="why-list">${Object.entries(c.reasons || {}).map(([k, v]) => `<li><b>${esc(k.replace('_', ' '))}:</b> ${esc(v)}</li>`).join('')}</ul></details>
           <div class="tools">
             <select class="input style-select" title="Caption style">${styleOptions(c.settings.style || 'auto')}</select>

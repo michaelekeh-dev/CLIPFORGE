@@ -399,8 +399,9 @@ class SmartFramer:
     """Frames each source frame using the analysis. Keyframes are recorded for the clip JSON."""
 
     def __init__(self, analysis: dict, src_w: int, src_h: int, out_w: int, out_h: int, forced_layout: str = "auto",
-                 zoom_fn=None):
+                 zoom_fn=None, shot_layouts: dict | None = None):
         self.a = analysis
+        self.shot_layouts = {float(k): v for k, v in (shot_layouts or {}).items()}
         self.sw, self.sh, self.ow, self.oh = src_w, src_h, out_w, out_h
         self.forced = forced_layout if forced_layout in ("single", "split", "wide", "speaker") else "auto"
         self.zoom_fn = zoom_fn  # t_out -> zoom factor (1.3)
@@ -429,12 +430,18 @@ class SmartFramer:
     def layout_for(self, shot: dict) -> str:
         lay = shot["layout"]
         n = len(shot["tracks"])
-        if self.forced != "auto":
-            lay = self.forced
+        forced = self.forced
+        for k, v in self.shot_layouts.items():
+            if abs(k - shot["start"]) < 0.05:
+                forced = v
+        if forced != "auto":
+            lay = forced
             if lay == "split" and n < 2:
                 lay = "single" if n == 1 else "wide"
             if lay in ("single", "speaker") and n == 0:
                 lay = "wide"
+            if lay == "split" and n >= 2:
+                return "split"
         if self.ow >= self.oh and lay in ("split", "wide"):
             lay = "wide"
         if lay == "speaker":

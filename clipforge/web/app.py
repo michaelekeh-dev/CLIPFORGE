@@ -19,6 +19,8 @@ app = FastAPI(title="CLIPFORGE", docs_url=None, redoc_url=None)
 app.mount("/static", StaticFiles(directory=HERE / "static"), name="static")
 templates = Jinja2Templates(directory=HERE / "templates")
 db.init_db()
+from .editor import router as editor_router  # noqa: E402
+app.include_router(editor_router)
 
 SESSION_DAYS = 30
 
@@ -260,6 +262,14 @@ def api_clip_thumbnail(cid: str):
     if not f.exists():
         raise HTTPException(404)
     return FileResponse(f, media_type="image/jpeg", filename=f"{c['idx']:02d} thumbnail.jpg")
+
+
+@app.get("/clip/{cid}", response_class=HTMLResponse)
+def clip_editor_page(request: Request, cid: str):
+    c = db.row("SELECT * FROM clips WHERE id=?", (cid,))
+    if not c:
+        raise HTTPException(404)
+    return page(request, "editor.html", clip=clip_json(dict(c)), presets=caption_presets(), templates_=brand.all_templates())
 
 
 @app.get("/health")

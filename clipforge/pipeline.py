@@ -4,7 +4,7 @@ import json
 import shutil
 import time
 from pathlib import Path
-from . import db, media, download, transcribe, moments, factcheck, render, captions, reframe, filler, effects, brand
+from . import db, media, download, transcribe, moments, factcheck, render, captions, reframe, filler, effects, brand, edits as ed
 from .config import cfg as _cfg, output_size
 from .config import PROJECTS, cfg
 from .timeline import Timeline
@@ -124,10 +124,12 @@ def render_one(cid: str, progress=None) -> dict:
         out_dir = pdir / "clips"
         out_dir.mkdir(exist_ok=True)
         out = out_dir / f"clip_{clip['idx']:02d}.mp4"
-        tl = Timeline.single(clip["start"], clip["end"])
+        edits = ed.normalise(settings.get("edits"), clip["start"], clip["end"])
+        tl = ed.timeline_for(edits)
         work = pdir / "work" / cid
         ratio = settings.get("ratio", "9:16")
         tr = json.loads((pdir / "transcript.json").read_text())
+        tr["words"] = ed.apply_text_fixes([{"i": i, **w} for i, w in enumerate(tr["words"])], edits["text_fixes"])
         template = brand.get(settings.get("template"))
         tdata = template["data"]
         popts = proj["options"] or {}
@@ -149,7 +151,8 @@ def render_one(cid: str, progress=None) -> dict:
                                    progress=lambda st, pct=None, status=None: prog(st, pct))
         # filler words, false starts and long silences
         level = settings.get("filler", _cfg.get("filler.level", "light"))
-        src_words = [w for w in tr["words"] if w["e"] > tl.start and w["s"] < tl.end]
+        src_words = [w for w in tr["words"] if w["e"] > tl.start and w["s"] < tl.end
+                     and not any(a <= w["s"] and w["e"] <= b for a, b in edits["deleted"])]
         cuts = []
         if level in ("light", "aggressive"):
             rms = reframe._audio_rms(speech_wav, tl.start, tl.end)
@@ -162,7 +165,8 @@ def render_one(cid: str, progress=None) -> dict:
             zooms = effects.zoom_windows(times, tl, analysis["shots"], float(_cfg.get("zooms.amount", 1.12)))
             zoom_fn = effects.ZoomFn(zooms) if zooms else None
         framer = reframe.SmartFramer(analysis, info["width"], info["height"], ow, oh,
-                                     forced_layout=settings.get("layout", "auto"), zoom_fn=zoom_fn)
+                                     forced_layout=settings.get("layout", "auto"), zoom_fn=zoom_fn,
+                                     shot_layouts=edits["shot_layouts"])
         if tdata.get("intro_card") and settings.get("intro_card", True):
             tl.lead_in = float(_cfg.get("cards.intro_seconds", 0.8))
         if tdata.get("outro_card") and settings.get("outro_card", True):
@@ -221,6 +225,8 @@ def render_one(cid: str, progress=None) -> dict:
         result = render.render_clip(src, tl, out, work, framer=framer, ratio=ratio, subtitles=subtitles, overlays=overlay, progress=prog,
                                     intro_card=intro_img, outro_card=outro_img)
         result["template"] = {"id": template["id"], "name": template["name"], "credit": credit_name}
+        result["edits"] = edits
+        result["lead_in"] = tl.lead_in
         result["captions"] = cap_info
         result["filler"] = {"level": level, "cuts": cuts, "removed_seconds": round(sum(c["e"] - c["s"] for c in cuts), 2)}
         result["zooms"] = zooms
@@ -238,7 +244,8 @@ def render_one(cid: str, progress=None) -> dict:
             media.thumbnail(out, thumb, t=min(1.0, tl.duration / 2), width=540)
         record = {
             "id": cid, "project": proj["id"], "index": clip["idx"], "source": str(src), "title": clip["title"],
-            "start": clip["start"], "end": clip["end"], "duration": result["duration"], "timeline": tl.as_list(),
+            "start": edits["start"], "end": edits["end"], "original_start": clip["start"], "original_end": clip["end"],
+            "duration": result["duration"], "timeline": tl.as_list(),
             "score": clip["score"], "settings": settings, "render": result, **{k: v for k, v in data.items() if k != "options"},
             "rendered_at": time.time(),
         }

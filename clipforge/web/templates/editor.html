@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block title %}Edit clip · CLIPFORGE{% endblock %}
+{% block nav %}<a class="muted" href="/project/{{ clip.project_id }}">Back to clips</a>{% endblock %}
+{% block content %}
+<link rel="stylesheet" href="/static/editor.css?v={{ version }}">
+<div class="editor" id="editor" data-clip="{{ clip.id }}">
+  <section class="player-wrap card">
+    <div class="eplayer" id="eplayer" style="view-transition-name: clip-{{ clip.id }}">
+      {% if clip.video_url %}<video id="video" src="{{ clip.video_url }}" poster="{{ clip.thumb_url }}" controls playsinline preload="metadata"></video>{% else %}<div class="ph">Not rendered yet</div>{% endif %}
+      <div class="render-overlay hidden" id="renderOverlay"><div class="spinner"></div><div id="renderStage" class="small">Rendering…</div><div class="bar"><div id="renderBar"></div></div></div>
+    </div>
+    <div class="ebar">
+      <button class="btn secondary small" id="undoBtn" disabled>Undo</button>
+      <span class="muted small" id="estatus"></span>
+      <button class="btn primary" id="renderBtn">Render</button>
+    </div>
+  </section>
+
+  <section class="card" id="transcriptCard">
+    <div class="thead"><h3 style="margin:0">Transcript</h3><span class="muted small">Tap a word to select it. Drag the handles to change where the clip starts and ends. Hold a word to fix its text.</span></div>
+    <div class="sel-actions hidden" id="selActions">
+      <button class="btn secondary small" id="delBtn">Cut out</button>
+      <button class="btn secondary small" id="startHereBtn">Start here</button>
+      <button class="btn secondary small" id="endHereBtn">End here</button>
+      <button class="btn secondary small" id="fixBtn">Fix text</button>
+      <button class="btn secondary small" id="restoreBtn">Put back</button>
+      <button class="btn secondary small" id="clearSelBtn">Clear</button>
+    </div>
+    <div class="transcript" id="transcript"></div>
+    <p class="muted small" id="rangeInfo"></p>
+  </section>
+
+  <section class="card controls">
+    <h3>Framing</h3>
+    <div class="grid">
+      <label>Overall<select class="input" id="c-layout"><option value="auto">Auto (faces decide)</option><option value="single">One person</option><option value="split">Two people</option><option value="wide">Whole picture</option></select></label>
+      <label>Shape<select class="input" id="c-ratio"><option value="9:16">Vertical 9:16</option><option value="1:1">Square 1:1</option><option value="16:9">Wide 16:9</option></select></label>
+    </div>
+    <div id="shots" class="shots"></div>
+  </section>
+
+  <section class="card controls">
+    <h3>Captions and effects</h3>
+    <div class="grid">
+      <label>Caption style<select class="input" id="c-style"></select></label>
+      <label>Remove filler and pauses<select class="input" id="c-filler"><option value="off">Off</option><option value="light">Light</option><option value="aggressive">Aggressive</option></select></label>
+      <label class="span2">Hook text<input class="input" id="c-hook_text" maxlength="80" placeholder="6-8 honest words"></label>
+      <div class="checks span2">
+        <label class="check"><input type="checkbox" id="c-hook"> Hook title</label>
+        <label class="check"><input type="checkbox" id="c-zooms"> Zooms</label>
+        <label class="check"><input type="checkbox" id="c-emoji"> Emoji</label>
+        <label class="check"><input type="checkbox" id="c-progress_bar"> Progress bar</label>
+        <label class="check"><input type="checkbox" id="c-broll"> B-roll</label>
+        <label class="check"><input type="checkbox" id="c-credit"> Source credit</label>
+      </div>
+      <label>Brand template<select class="input" id="c-template"></select></label>
+    </div>
+    <div id="brollList" class="broll-list"></div>
+  </section>
+
+  <section class="card controls">
+    <div class="row">
+      <a class="btn primary" id="dlBtn" href="{{ clip.download_url }}">Download</a>
+      <button class="btn secondary" id="copyBtn">Copy title + tags</button>
+      <button class="btn danger" id="resetBtn">Reset edits</button>
+    </div>
+  </section>
+</div>
+{% endblock %}
+{% block scripts %}<script>window.CF_PRESETS = {{ presets|tojson }}; window.CF_TEMPLATES = {{ templates_|map(attribute='name')|list|tojson }}; window.CF_TEMPLATE_IDS = {{ templates_|map(attribute='id')|list|tojson }};</script><script src="/static/editor.js?v={{ version }}"></script>{% endblock %}

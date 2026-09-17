@@ -120,3 +120,7 @@ code { background: var(--bg3); padding: .1em .35em; border-radius: 6px; font-siz
 .row { display: flex; gap: 8px; flex-wrap: wrap; }
 .input.color { padding: 4px; height: 44px; }
 .clip .thumb-link { font-size: .85rem; }
+@view-transition { navigation: auto; }
+::view-transition-old(root), ::view-transition-new(root) { animation-duration: .28s; }
+.clip .edit-link { align-self: flex-start; }
+.clip a.title:hover { color: var(--accent2); }

@@ -1,0 +1,1192 @@
+{
+  "id": "c_cbdb66c02a87",
+  "project": "p_8919b0d456ef",
+  "index": 3,
+  "source": "/home/user/CLIPFORGE/data/projects/p_8919b0d456ef/source.mp4",
+  "title": "The more you see machine learning and the kinds of things...",
+  "start": 253.04,
+  "end": 297.07,
+  "original_start": 253.04,
+  "original_end": 297.07,
+  "duration": 47.86,
+  "timeline": [
+    [
+      253.04,
+      280.06
+    ],
+    [
+      280.41,
+      293.17
+    ],
+    [
+      293.39,
+      297.07
+    ]
+  ],
+  "score": 93,
+  "settings": {
+    "ratio": "9:16",
+    "layout": "auto",
+    "style": "auto",
+    "emoji": true,
+    "filler": "light",
+    "hook": true,
+    "zooms": true,
+    "progress_bar": true,
+    "template": "",
+    "edits": {
+      "start": 251.04,
+      "end": 297.07,
+      "deleted": [],
+      "text_fixes": {},
+      "shot_layouts": {
+        "253.04": "wide"
+      }
+    },
+    "hook_text": "Edited in the CLIPFORGE editor"
+  },
+  "render": {
+    "frames": 1102,
+    "fps": 23.976,
+    "width": 1080,
+    "height": 1920,
+    "duration": 45.86,
+    "loudness": {
+      "input_i": "-25.02",
+      "input_tp": "-8.65",
+      "input_lra": "2.40",
+      "input_thresh": "-35.24",
+      "output_i": "-14.07",
+      "output_tp": "-1.50",
+      "output_lra": "2.20",
+      "output_thresh": "-24.27",
+      "normalization_type": "dynamic",
+      "target_offset": "0.07"
+    },
+    "template": {
+      "id": "t_d5e8d535e33b",
+      "name": "TheTruthUntold",
+      "credit": "@GoogleDevelopers"
+    },
+    "edits": {
+      "start": 253.04,
+      "end": 297.07,
+      "deleted": [],
+      "text_fixes": {},
+      "shot_layouts": {}
+    },
+    "lead_in": 0.8,
+    "captions": {
+      "style": "bold_pop",
+      "words": 134,
+      "emojis": [
+        "👀",
+        "💻",
+        "👀",
+        "🤔"
+      ],
+      "lines": 134
+    },
+    "filler": {
+      "level": "light",
+      "cuts": [
+        {
+          "s": 280.06,
+          "e": 280.41,
+          "why": "silence 0.6s"
+        },
+        {
+          "s": 293.17,
+          "e": 293.39,
+          "why": "false start: very,"
+        }
+      ],
+      "removed_seconds": 0.57
+    },
+    "zooms": [
+      {
+        "s": 1.84,
+        "peak_s": 2.19,
+        "peak_e": 3.29,
+        "e": 3.79,
+        "amount": 1.12,
+        "src": 255.03
+      }
+    ],
+    "hook": {
+      "on": true,
+      "text": "The more you see machine learning and the..."
+    },
+    "reframe": {
+      "layout_setting": "auto",
+      "shots": [
+        {
+          "start": 253.04,
+          "end": 259.384,
+          "layout": "single",
+          "faces": 1,
+          "speakers": [
+            [
+              253.04,
+              259.384,
+              0
+            ]
+          ],
+          "confidence": 1.0
+        },
+        {
+          "start": 259.384,
+          "end": 261.636,
+          "layout": "wide",
+          "faces": 0,
+          "speakers": [],
+          "confidence": 0
+        },
+        {
+          "start": 261.636,
+          "end": 263.096,
+          "layout": "single",
+          "faces": 1,
+          "speakers": [
+            [
+              261.636,
+              263.096,
+              0
+            ]
+          ],
+          "confidence": 1.0
+        },
+        {
+          "start": 263.096,
+          "end": 265.515,
+          "layout": "wide",
+          "faces": 0,
+          "speakers": [],
+          "confidence": 0
+        },
+        {
+          "start": 265.515,
+          "end": 268.226,
+          "layout": "wide",
+          "faces": 0,
+          "speakers": [],
+          "confidence": 0
+        },
+        {
+          "start": 268.226,
+          "end": 272.189,
+          "layout": "wide",
+          "faces": 0,
+          "speakers": [],
+          "confidence": 0
+        },
+        {
+          "start": 272.189,
+          "end": 276.651,
+          "layout": "wide",
+          "faces": 0,
+          "speakers": [],
+          "confidence": 0
+        },
+        {
+          "start": 276.651,
+          "end": 280.197,
+          "layout": "single",
+          "faces": 1,
+          "speakers": [
+            [
+              276.651,
+              280.197,
+              0
+            ]
+          ],
+          "confidence": 1.0
+        },
+        {
+          "start": 280.197,
+          "end": 286.036,
+          "layout": "single",
+          "faces": 1,
+          "speakers": [
+            [
+              280.197,
+              286.036,
+              0
+            ]
+          ],
+          "confidence": 1.0
+        },
+        {
+          "start": 286.036,
+          "end": 289.372,
+          "layout": "wide",
+          "faces": 0,
+          "speakers": [],
+          "confidence": 0
+        },
+        {
+          "start": 289.372,
+          "end": 291.374,
+          "layout": "wide",
+          "faces": 0,
+          "speakers": [],
+          "confidence": 0
+        },
+        {
+          "start": 291.374,
+          "end": 292.667,
+          "layout": "single",
+          "faces": 1,
+          "speakers": [
+            [
+              291.374,
+              292.667,
+              0
+            ]
+          ],
+          "confidence": 1.0
+        },
+        {
+          "start": 292.667,
+          "end": 296.379,
+          "layout": "single",
+          "faces": 1,
+          "speakers": [
+            [
+              292.667,
+              296.379,
+              0
+            ]
+          ],
+          "confidence": 1.0
+        },
+        {
+          "start": 296.379,
+          "end": 297.07,
+          "layout": "wide",
+          "faces": 0,
+          "speakers": [],
+          "confidence": 0
+        }
+      ],
+      "keyframes": [
+        [
+          0.79,
+          "wide",
+          null
+        ],
+        [
+          1.29,
+          "single",
+          [
+            [
+              655.5,
+              360.0
+            ],
+            [
+              405.0,
+              720.0
+            ],
+            0
+          ]
+        ],
+        [
+          1.79,
+          "single",
+          [
+            [
+              655.5,
+              360.0
+            ],
+            [
+              405.0,
+              720.0
+            ],
+            0
+          ]
+        ],
+        [
+          2.29,
+          "single",
+          [
+            [
+              655.5,
+              364.6
+            ],
+            [
+              361.6,
+              642.9
+            ],
+            0
+          ]
+        ],
+        [
+          2.79,
+          "single",
+          [
+            [
+              655.5,
+              368.0
+            ],
+            [
+              361.6,
+              642.9
+            ],
+            0
+          ]
+        ],
+        [
+          3.29,
+          "single",
+          [
+            [
+              655.5,
+              369.1
+            ],
+            [
+              361.6,
+              642.9
+            ],
+            0
+          ]
+        ],
+        [
+          3.8,
+          "single",
+          [
+            [
+              655.5,
+              360.0
+            ],
+            [
+              405.0,
+              720.0
+            ],
+            0
+          ]
+        ],
+        [
+          4.3,
+          "single",
+          [
+            [
+              655.5,
+              360.0
+            ],
+            [
+              405.0,
+              720.0
+            ],
+            0
+          ]
+        ],
+        [
+          4.8,
+          "single",
+          [
+            [
+              655.5,
+              360.0
+            ],
+            [
+              405.0,
+              720.0
+            ],
+            0
+          ]
+        ],
+        [
+          5.3,
+          "single",
+          [
+            [
+              655.5,
+              360.0
+            ],
+            [
+              405.0,
+              720.0
+            ],
+            0
+          ]
+        ],
+        [
+          5.8,
+          "single",
+          [
+            [
+              655.5,
+              360.0
+            ],
+            [
+              405.0,
+              720.0
+            ],
+            0
+          ]
+        ],
+        [
+          6.3,
+          "single",
+          [
+            [
+              655.5,
+              360.0
+            ],
+            [
+              405.0,
+              720.0
+            ],
+            0
+          ]
+        ],
+        [
+          6.8,
+          "single",
+          [
+            [
+              655.5,
+              360.0
+            ],
+            [
+              405.0,
+              720.0
+            ],
+            0
+          ]
+        ],
+        [
+          7.3,
+          "wide",
+          null
+        ],
+        [
+          7.8,
+          "wide",
+          null
+        ],
+        [
+          8.3,
+          "wide",
+          null
+        ],
+        [
+          8.8,
+          "wide",
+          null
+        ],
+        [
+          9.3,
+          "wide",
+          null
+        ],
+        [
+          9.8,
+          "single",
+          [
+            [
+              407.7,
+              360.0
+            ],
+            [
+              405.0,
+              720.0
+            ],
+            0
+          ]
+        ],
+        [
+          10.3,
+          "single",
+          [
+            [
+              407.7,
+              360.0
+            ],
+            [
+              405.0,
+              720.0
+            ],
+            0
+          ]
+        ],
+        [
+          10.8,
+          "single",
+          [
+            [
+              407.7,
+              360.0
+            ],
+            [
+              405.0,
+              720.0
+            ],
+            0
+          ]
+        ],
+        [
+          11.3,
+          "wide",
+          null
+        ],
+        [
+          11.8,
+          "wide",
+          null
+        ],
+        [
+          12.3,
+          "wide",
+          null
+        ],
+        [
+          12.8,
+          "wide",
+          null
+        ],
+        [
+          13.3,
+          "wide",
+          null
+        ],
+        [
+          13.81,
+          "wide",
+          null
+        ],
+        [
+          14.31,
+          "wide",
+          null
+        ],
+        [
+          14.81,
+          "wide",
+          null
+        ],
+        [
+          15.31,
+          "wide",
+          null
+        ],
+        [
+          15.81,
+          "wide",
+          null
+        ],
+        [
+          16.31,
+          "wide",
+          null
+        ],
+        [
+          16.81,
+          "wide",
+          null
+        ],
+        [
+          17.31,
+          "wide",
+          null
+        ],
+        [
+          17.81,
+          "wide",
+          null
+        ],
+        [
+          18.31,
+          "wide",
+          null
+        ],
+        [
+          18.81,
+          "wide",
+          null
+        ],
+        [
+          19.31,
+          "wide",
+          null
+        ],
+        [
+          19.81,
+          "wide",
+          null
+        ],
+        [
+          20.31,
+          "wide",
+          null
+        ],
+        [
+          20.81,
+          "wide",
+          null
+        ],
+        [
+          21.31,
+          "wide",
+          null
+        ],
+        [
+          21.81,
+          "wide",
+          null
+        ],
+        [
+          22.31,
+          "wide",
+          null
+        ],
+        [
+          22.81,
+          "wide",
+          null
+        ],
+        [
+          23.31,
+          "wide",
+          null
+        ],
+        [
+          23.82,
+          "wide",
+          null
+        ],
+        [
+          24.32,
+          "wide",
+          null
+        ],
+        [
+          24.82,
+          "single",
+          [
+            [
+              624.1,
+              360.0
+            ],
+            [
+              405.0,
+              720.0
+            ],
+            0
+          ]
+        ],
+        [
+          25.32,
+          "single",
+          [
+            [
+              624.1,
+              360.0
+            ],
+            [
+              405.0,
+              720.0
+            ],
+            0
+          ]
+        ],
+        [
+          25.82,
+          "single",
+          [
+            [
+              624.1,
+              360.0
+            ],
+            [
+              405.0,
+              720.0
+            ],
+            0
+          ]
+        ],
+        [
+          26.32,
+          "single",
+          [
+            [
+              624.1,
+              360.0
+            ],
+            [
+              405.0,
+              720.0
+            ],
+            0
+          ]
+        ],
+        [
+          26.82,
+          "single",
+          [
+            [
+              624.1,
+              360.0
+            ],
+            [
+              405.0,
+              720.0
+            ],
+            0
+          ]
+        ],
+        [
+          27.32,
+          "single",
+          [
+            [
+              624.1,
+              360.0
+            ],
+            [
+              405.0,
+              720.0
+            ],
+            0
+          ]
+        ],
+        [
+          27.82,
+          "single",
+          [
+            [
+              390.6,
+              360.0
+            ],
+            [
+              405.0,
+              720.0
+            ],
+            0
+          ]
+        ],
+        [
+          28.32,
+          "single",
+          [
+            [
+              390.6,
+              360.0
+            ],
+            [
+              405.0,
+              720.0
+            ],
+            0
+          ]
+        ],
+        [
+          28.82,
+          "single",
+          [
+            [
+              390.6,
+              360.0
+            ],
+            [
+              405.0,
+              720.0
+            ],
+            0
+          ]
+        ],
+        [
+          29.32,
+          "single",
+          [
+            [
+              390.6,
+              360.0
+            ],
+            [
+              405.0,
+              720.0
+            ],
+            0
+          ]
+        ],
+        [
+          29.82,
+          "single",
+          [
+            [
+              390.6,
+              360.0
+            ],
+            [
+              405.0,
+              720.0
+            ],
+            0
+          ]
+        ],
+        [
+          30.32,
+          "single",
+          [
+            [
+              390.6,
+              360.0
+            ],
+            [
+              405.0,
+              720.0
+            ],
+            0
+          ]
+        ],
+        [
+          30.82,
+          "single",
+          [
+            [
+              390.6,
+              360.0
+            ],
+            [
+              405.0,
+              720.0
+            ],
+            0
+          ]
+        ],
+        [
+          31.32,
+          "single",
+          [
+            [
+              390.6,
+              360.0
+            ],
+            [
+              405.0,
+              720.0
+            ],
+            0
+          ]
+        ],
+        [
+          31.82,
+          "single",
+          [
+            [
+              390.6,
+              360.0
+            ],
+            [
+              405.0,
+              720.0
+            ],
+            0
+          ]
+        ],
+        [
+          32.32,
+          "single",
+          [
+            [
+              390.6,
+              360.0
+            ],
+            [
+              405.0,
+              720.0
+            ],
+            0
+          ]
+        ],
+        [
+          32.82,
+          "single",
+          [
+            [
+              390.6,
+              360.0
+            ],
+            [
+              405.0,
+              720.0
+            ],
+            0
+          ]
+        ],
+        [
+          33.32,
+          "single",
+          [
+            [
+              390.6,
+              360.0
+            ],
+            [
+              405.0,
+              720.0
+            ],
+            0
+          ]
+        ],
+        [
+          33.83,
+          "wide",
+          null
+        ],
+        [
+          34.33,
+          "wide",
+          null
+        ],
+        [
+          34.83,
+          "wide",
+          null
+        ],
+        [
+          35.33,
+          "wide",
+          null
+        ],
+        [
+          35.83,
+          "wide",
+          null
+        ],
+        [
+          36.33,
+          "wide",
+          null
+        ],
+        [
+          36.83,
+          "wide",
+          null
+        ],
+        [
+          37.33,
+          "wide",
+          null
+        ],
+        [
+          37.83,
+          "wide",
+          null
+        ],
+        [
+          38.33,
+          "wide",
+          null
+        ],
+        [
+          38.83,
+          "single",
+          [
+            [
+              634.5,
+              360.0
+            ],
+            [
+              405.0,
+              720.0
+            ],
+            0
+          ]
+        ],
+        [
+          39.33,
+          "single",
+          [
+            [
+              634.5,
+              360.0
+            ],
+            [
+              405.0,
+              720.0
+            ],
+            0
+          ]
+        ],
+        [
+          39.83,
+          "single",
+          [
+            [
+              634.5,
+              360.0
+            ],
+            [
+              405.0,
+              720.0
+            ],
+            0
+          ]
+        ],
+        [
+          40.33,
+          "single",
+          [
+            [
+              412.5,
+              360.0
+            ],
+            [
+              405.0,
+              720.0
+            ],
+            0
+          ]
+        ],
+        [
+          40.83,
+          "single",
+          [
+            [
+              412.5,
+              360.0
+            ],
+            [
+              405.0,
+              720.0
+            ],
+            0
+          ]
+        ],
+        [
+          41.33,
+          "single",
+          [
+            [
+              412.5,
+              360.0
+            ],
+            [
+              405.0,
+              720.0
+            ],
+            0
+          ]
+        ],
+        [
+          41.83,
+          "single",
+          [
+            [
+              412.5,
+              360.0
+            ],
+            [
+              405.0,
+              720.0
+            ],
+            0
+          ]
+        ],
+        [
+          42.33,
+          "single",
+          [
+            [
+              412.5,
+              360.0
+            ],
+            [
+              405.0,
+              720.0
+            ],
+            0
+          ]
+        ],
+        [
+          42.83,
+          "single",
+          [
+            [
+              412.5,
+              360.0
+            ],
+            [
+              405.0,
+              720.0
+            ],
+            0
+          ]
+        ],
+        [
+          43.34,
+          "single",
+          [
+            [
+              412.5,
+              360.0
+            ],
+            [
+              405.0,
+              720.0
+            ],
+            0
+          ]
+        ],
+        [
+          43.84,
+          "wide",
+          null
+        ],
+        [
+          44.34,
+          "wide",
+          null
+        ]
+      ],
+      "lip_reader": true,
+      "diarization": false
+    },
+    "thumbnail": {
+      "t": 1.25,
+      "score": 6.57
+    }
+  },
+  "reasons": {
+    "hook": "Starts on a question or hook word",
+    "payoff": "Ends on a full sentence",
+    "emotion": "Calm delivery",
+    "standalone": "Complete thought",
+    "topic_match": "7 topic keywords"
+  },
+  "topic": "computer, learning, machine",
+  "description": "The more you see machine learning and the kinds of things it can do, the more you see opportunity for it to improve people's lives. We can use machine learning...",
+  "hashtags": [
+    "#shorts",
+    "#machine",
+    "#learning",
+    "#data",
+    "#computer"
+  ],
+  "key_words": [
+    "machine",
+    "learning",
+    "machine"
+  ],
+  "wi": 736,
+  "wj": 868,
+  "emojis": [],
+  "hook": "",
+  "zooms": [],
+  "text": "The more you see machine learning and the kinds of things it can do, the more you see opportunity for it to improve people's lives. We can use machine learning to save power at significant scales, even track the spread of diseases and epidemics. We could use a computer vision model for everyone who's visually impaired. We could make speech recognizer for everyone on the planet and drastically improve the experience of millions and billions of people. I don't see any area of science or even of human endeavor that learn systems can't help with. If you'd asked me a few years ago if a computer would be able to do this anytime soon, I would have said I don't really think so. It's very, very empowering to imagine what's going to come.",
+  "fact_check": {
+    "type": "opinion",
+    "claims": [],
+    "scripture": [],
+    "red_flags": [],
+    "honest_title": "The more you see machine learning and the kinds of things...",
+    "verdict": "ok",
+    "summary": "Automatic check only (no Anthropic key): nothing obviously wrong, but claims were not verified.",
+    "checked_by": "heuristic"
+  },
+  "pick_method": "heuristic (no ANTHROPIC_API_KEY)",
+  "honest_title": "The more you see machine learning and the kinds of things...",
+  "rendered_at": 1789648227.176399
+}
