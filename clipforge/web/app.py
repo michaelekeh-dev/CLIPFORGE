@@ -329,6 +329,7 @@ def clip_json(c: dict) -> dict:
         "filler": (d.get("render") or {}).get("filler") or {},
         "zooms": (d.get("render") or {}).get("zooms") or [],
         "thumbnail_url": f"/api/clips/{c['id']}/thumbnail" if c.get("path") else "",
+        "broll": (d.get("render") or {}).get("broll") or {},
     }
 
 
@@ -363,7 +364,7 @@ async def api_create_project(request: Request, url: str = Form(""), clips: int =
                              keywords: str = Form(""), start: str = Form(""), end: str = Form(""),
                              style: str = Form("auto"), emoji: str = Form("on"), layout: str = Form("auto"),
                              filler: str = Form("light"), hook: str = Form("on"), zooms: str = Form("on"), progress_bar: str = Form("on"),
-                             ratio: str = Form("9:16"), template: str = Form(""),
+                             ratio: str = Form("9:16"), template: str = Form(""), broll: str = Form("on"),
                              file: UploadFile | None = File(None)):
     opts = pipeline.default_options()
     opts.update({"clips": max(1, min(20, int(clips))), "length": length if length in ("auto", "short", "medium", "long") else "auto",
@@ -372,7 +373,7 @@ async def api_create_project(request: Request, url: str = Form(""), clips: int =
                  "layout": layout if layout in ("auto", "single", "split", "wide") else "auto",
                  "filler": filler if filler in ("off", "light", "aggressive") else "light",
                  "hook": hook in ("on", "true", "1"), "zooms": zooms in ("on", "true", "1"), "progress_bar": progress_bar in ("on", "true", "1"),
-                 "ratio": ratio if ratio in ("9:16", "1:1", "16:9") else "9:16", "template": template})
+                 "ratio": ratio if ratio in ("9:16", "1:1", "16:9") else "9:16", "template": template, "broll": broll in ("on", "true", "1")})
     title = ""
     if file is not None and file.filename:
         UPLOADS.mkdir(parents=True, exist_ok=True)

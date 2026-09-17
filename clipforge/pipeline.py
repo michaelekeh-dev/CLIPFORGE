@@ -4,8 +4,8 @@ import json
 import shutil
 import time
 from pathlib import Path
-from . import db, media, download, transcribe, moments, factcheck, render, captions, reframe, filler, effects, brand, edits as ed
-from .config import cfg as _cfg, output_size
+from . import db, media, download, transcribe, moments, factcheck, render, captions, reframe, filler, effects, brand, edits as ed, broll
+from .config import cfg as _cfg, output_size, env as _env
 from .config import PROJECTS, cfg
 from .timeline import Timeline
 
@@ -101,7 +101,8 @@ def run_project(pid: str, progress) -> None:
                                                        "filler": opts.get("filler", _cfg.get("filler.level", "light")),
                                                        "hook": bool(opts.get("hook", True)), "zooms": bool(opts.get("zooms", True)),
                                                        "progress_bar": bool(opts.get("progress_bar", True)),
-                                                       "template": opts.get("template") or ""}})
+                                                       "template": opts.get("template") or "",
+                                                       "broll": bool(opts.get("broll", True))}})
         clip_ids.append(cid)
     for i, cid in enumerate(clip_ids, start=1):
         base = 60 + 40 * (i - 1) / len(clip_ids)
@@ -205,7 +206,15 @@ def render_one(cid: str, progress=None) -> dict:
         elif extra:
             subtitles = work / "captions.ass"
             subtitles.write_text(captions.build_ass([], ow, oh, captions.preset(None), ratio, extra=extra)[0])
-        extras = [overlay]
+        # B-roll: short free stock shots when the clip mentions something visual
+        prog("Finding B-roll", 0)
+        broll_items = []
+        try:
+            broll_items = broll.plan(data, src_words, tl, settings, ratio)
+        except Exception as e:  # noqa: BLE001
+            db.log_error("broll", str(e))
+        broll_frames = broll.BrollFrames(broll_items, ow, oh, float(_cfg.get("render.fps", 30))) if broll_items else None
+        extras = [broll_frames, overlay]
         if settings.get("progress_bar", bool(tdata.get("progress_bar", True)) and bool(_cfg.get("progress_bar.enabled", True))):
             extras.append(effects.ProgressBar(tl.duration, ow, oh, tdata.get("accent") or None))
         wm_from = tl.lead_in + float(_cfg.get("hook.seconds", 3.0)) + 0.3 if (hook_on and hook_text) else tl.lead_in
@@ -227,6 +236,8 @@ def render_one(cid: str, progress=None) -> dict:
         result["template"] = {"id": template["id"], "name": template["name"], "credit": credit_name}
         result["edits"] = edits
         result["lead_in"] = tl.lead_in
+        result["broll"] = {"items": [{k: v for k, v in it.items() if k != "video"} for it in broll_items],
+                           "source": "mock" if _env("PEXELS_MOCK_DIR") else ("pexels" if _env("PEXELS_API_KEY") else "off")}
         result["captions"] = cap_info
         result["filler"] = {"level": level, "cuts": cuts, "removed_seconds": round(sum(c["e"] - c["s"] for c in cuts), 2)}
         result["zooms"] = zooms
@@ -243,10 +254,11 @@ def render_one(cid: str, progress=None) -> dict:
             db.log_error("thumbnail", str(e))
             media.thumbnail(out, thumb, t=min(1.0, tl.duration / 2), width=540)
         record = {
+            **{k: v for k, v in data.items() if k not in ("options", "render", "timeline")},
             "id": cid, "project": proj["id"], "index": clip["idx"], "source": str(src), "title": clip["title"],
             "start": edits["start"], "end": edits["end"], "original_start": clip["start"], "original_end": clip["end"],
             "duration": result["duration"], "timeline": tl.as_list(),
-            "score": clip["score"], "settings": settings, "render": result, **{k: v for k, v in data.items() if k != "options"},
+            "score": clip["score"], "settings": settings, "render": result,
             "rendered_at": time.time(),
         }
         render.write_json(out_dir / f"clip_{clip['idx']:02d}.json", record)

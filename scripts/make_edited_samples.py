@@ -61,7 +61,7 @@ def main():
                         "-crf", "28", "-c:a", "aac", "-b:a", "96k", "-movflags", "+faststart", out_dir / f"{name}.mp4"], check=True)
         subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", src / f"{name}.mp4", "-vf", "fps=2,scale=180:-1,tile=8x6", "-frames:v", "1", "-q:v", "5",
                         out_dir / f"{name}_frames.jpg"], check=True)
-        notes.append(f"- **{name}.mp4** score {d['score']} · {d['duration']}s · {d['start']:.1f}-{d['end']:.1f}s · {d['title']}\n  - edits: {'; '.join(what) or 'none'}")
+        notes.append(f"- **{name}.mp4** score {int(d['score'])} · {d['duration']}s · {d['start']:.1f}-{d['end']:.1f}s · {d['title']}\n  - edits: {'; '.join(what) or 'none'}")
     (out_dir / "README.md").write_text(f"# Samples for CLIPFORGE {release}\n\nSource: `{Path(video).name}` (project {pid}). Each clip was re-rendered after edits made through the editor API.\n\n" + "\n".join(notes) + "\n")
     print(f"samples in {out_dir}")
 

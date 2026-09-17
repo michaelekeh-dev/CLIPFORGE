@@ -1,23 +1,23 @@
 {
-  "start": 251.04,
-  "end": 297.07,
-  "score": 93.0,
+  "start": 253.04,
+  "end": 286.91,
+  "score": 87.0,
   "reasons": {
     "hook": "Starts on a question or hook word",
     "payoff": "Ends on a full sentence",
     "emotion": "Calm delivery",
     "standalone": "Complete thought",
-    "topic_match": "7 topic keywords"
+    "topic_match": "4 topic keywords"
   },
-  "topic": "computer, learning, machine",
+  "topic": "learning, machine",
   "title": "The more you see machine learning and the kinds of things...",
   "description": "The more you see machine learning and the kinds of things it can do, the more you see opportunity for it to improve people's lives. We can use machine learning...",
   "hashtags": [
     "#shorts",
+    "#world",
     "#machine",
-    "#learning",
-    "#data",
-    "#computer"
+    "#city",
+    "#learning"
   ],
   "key_words": [
     "machine",
@@ -25,13 +25,14 @@
     "machine"
   ],
   "wi": 736,
-  "wj": 868,
+  "wj": 831,
   "emojis": [],
   "hook": "",
   "zooms": [],
-  "text": "The more you see machine learning and the kinds of things it can do, the more you see opportunity for it to improve people's lives. We can use machine learning to save power at significant scales, even track the spread of diseases and epidemics. We could use a computer vision model for everyone who's visually impaired. We could make speech recognizer for everyone on the planet and drastically improve the experience of millions and billions of people. I don't see any area of science or even of human endeavor that learn systems can't help with. If you'd asked me a few years ago if a computer would be able to do this anytime soon, I would have said I don't really think so. It's very, very empowering to imagine what's going to come.",
+  "broll": [],
+  "text": "The more you see machine learning and the kinds of things it can do, the more you see opportunity for it to improve people's lives. We can use machine learning to save power at significant scales, even track the spread of diseases and epidemics. We could use a computer vision model for everyone who's visually impaired. We could make speech recognizer for everyone on the planet and drastically improve the experience of millions and billions of people. I don't see any area of science or even of human endeavor that learn systems can't help with. If",
   "fact_check": {
-    "type": "opinion",
+    "type": "entertainment",
     "claims": [],
     "scripture": [],
     "red_flags": [],
@@ -42,25 +43,21 @@
   },
   "pick_method": "heuristic (no ANTHROPIC_API_KEY)",
   "honest_title": "The more you see machine learning and the kinds of things...",
-  "id": "c_cbdb66c02a87",
-  "project": "p_8919b0d456ef",
+  "id": "c_c72de4a90d37",
+  "project": "p_1c7ba9d88ebc",
   "index": 3,
-  "source": "/home/user/CLIPFORGE/data/projects/p_8919b0d456ef/source.mp4",
+  "source": "/home/user/CLIPFORGE/data/projects/p_1c7ba9d88ebc/source.mp4",
   "original_start": 253.04,
-  "original_end": 297.07,
-  "duration": 47.86,
+  "original_end": 286.91,
+  "duration": 35.92,
   "timeline": [
     [
-      251.04,
+      253.04,
       280.06
     ],
     [
       280.41,
-      293.17
-    ],
-    [
-      293.39,
-      297.07
+      286.91
     ]
   ],
   "settings": {
@@ -73,34 +70,25 @@
     "zooms": true,
     "progress_bar": true,
     "template": "",
-    "edits": {
-      "start": 251.04,
-      "end": 297.07,
-      "deleted": [],
-      "text_fixes": {},
-      "shot_layouts": {
-        "253.04": "wide"
-      }
-    },
-    "hook_text": "Edited in the CLIPFORGE editor"
+    "broll": true
   },
   "render": {
-    "frames": 1150,
+    "frames": 862,
     "fps": 23.976,
     "width": 1080,
     "height": 1920,
-    "duration": 47.86,
+    "duration": 35.92,
     "loudness": {
-      "input_i": "-25.10",
+      "input_i": "-25.17",
       "input_tp": "-8.65",
-      "input_lra": "2.70",
-      "input_thresh": "-35.35",
-      "output_i": "-13.90",
+      "input_lra": "2.40",
+      "input_thresh": "-35.44",
+      "output_i": "-14.16",
       "output_tp": "-1.50",
-      "output_lra": "2.20",
-      "output_thresh": "-24.12",
+      "output_lra": "2.10",
+      "output_thresh": "-24.41",
       "normalization_type": "dynamic",
-      "target_offset": "-0.10"
+      "target_offset": "0.16"
     },
     "template": {
       "id": "t_d5e8d535e33b",
@@ -108,29 +96,47 @@
       "credit": "@GoogleDevelopers"
     },
     "edits": {
-      "start": 251.04,
-      "end": 297.07,
+      "start": 253.04,
+      "end": 286.91,
       "deleted": [],
       "text_fixes": {},
-      "shot_layouts": {
-        "253.04": "wide"
-      }
+      "shot_layouts": {}
     },
     "lead_in": 0.8,
     "broll": {
-      "items": [],
-      "source": "off"
+      "items": [
+        {
+          "idx": 0,
+          "t": 262.07,
+          "word": "machine",
+          "query": "industrial machine",
+          "s": 9.68,
+          "e": 12.18,
+          "credit": "Pexels / mock",
+          "page": ""
+        },
+        {
+          "idx": 1,
+          "t": 269.11,
+          "word": "computer",
+          "query": "computer code screen",
+          "s": 16.72,
+          "e": 19.22,
+          "credit": "Pexels / mock",
+          "page": ""
+        }
+      ],
+      "source": "mock"
     },
     "captions": {
       "style": "bold_pop",
-      "words": 139,
+      "words": 97,
       "emojis": [
         "👀",
         "💻",
-        "👀",
-        "🤔"
+        "👀"
       ],
-      "lines": 139
+      "lines": 97
     },
     "filler": {
       "level": "light",
@@ -139,48 +145,35 @@
           "s": 280.06,
           "e": 280.41,
           "why": "silence 0.6s"
-        },
-        {
-          "s": 293.17,
-          "e": 293.39,
-          "why": "false start: very,"
         }
       ],
-      "removed_seconds": 0.57
+      "removed_seconds": 0.35
     },
     "zooms": [
       {
-        "s": 3.84,
-        "peak_s": 4.19,
-        "peak_e": 5.29,
-        "e": 5.79,
+        "s": 1.84,
+        "peak_s": 2.19,
+        "peak_e": 3.29,
+        "e": 3.79,
         "amount": 1.12,
         "src": 255.03
       }
     ],
     "hook": {
       "on": true,
-      "text": "Edited in the CLIPFORGE editor"
+      "text": "The more you see machine learning and the..."
     },
     "reframe": {
       "layout_setting": "auto",
       "shots": [
         {
-          "start": 251.04,
-          "end": 253.086,
-          "layout": "wide",
-          "faces": 0,
-          "speakers": [],
-          "confidence": 0
-        },
-        {
-          "start": 253.086,
+          "start": 253.04,
           "end": 259.384,
           "layout": "single",
           "faces": 1,
           "speakers": [
             [
-              253.086,
+              253.04,
               259.384,
               0
             ]
@@ -271,51 +264,7 @@
         },
         {
           "start": 286.036,
-          "end": 289.372,
-          "layout": "wide",
-          "faces": 0,
-          "speakers": [],
-          "confidence": 0
-        },
-        {
-          "start": 289.372,
-          "end": 291.374,
-          "layout": "wide",
-          "faces": 0,
-          "speakers": [],
-          "confidence": 0
-        },
-        {
-          "start": 291.374,
-          "end": 292.667,
-          "layout": "single",
-          "faces": 1,
-          "speakers": [
-            [
-              291.374,
-              292.667,
-              0
-            ]
-          ],
-          "confidence": 1.0
-        },
-        {
-          "start": 292.667,
-          "end": 296.379,
-          "layout": "single",
-          "faces": 1,
-          "speakers": [
-            [
-              292.667,
-              296.379,
-              0
-            ]
-          ],
-          "confidence": 1.0
-        },
-        {
-          "start": 296.379,
-          "end": 297.07,
+          "end": 286.91,
           "layout": "wide",
           "faces": 0,
           "speakers": [],
@@ -330,63 +279,183 @@
         ],
         [
           1.29,
-          "wide",
-          null
+          "single",
+          [
+            [
+              655.5,
+              360.0
+            ],
+            [
+              405.0,
+              720.0
+            ],
+            0
+          ]
         ],
         [
           1.79,
-          "wide",
-          null
+          "single",
+          [
+            [
+              655.5,
+              360.0
+            ],
+            [
+              405.0,
+              720.0
+            ],
+            0
+          ]
         ],
         [
           2.29,
-          "wide",
-          null
+          "single",
+          [
+            [
+              655.5,
+              364.6
+            ],
+            [
+              361.6,
+              642.9
+            ],
+            0
+          ]
         ],
         [
           2.79,
-          "wide",
-          null
+          "single",
+          [
+            [
+              655.5,
+              368.0
+            ],
+            [
+              361.6,
+              642.9
+            ],
+            0
+          ]
         ],
         [
           3.29,
-          "wide",
-          null
+          "single",
+          [
+            [
+              655.5,
+              369.1
+            ],
+            [
+              361.6,
+              642.9
+            ],
+            0
+          ]
         ],
         [
           3.8,
-          "wide",
-          null
+          "single",
+          [
+            [
+              655.5,
+              360.0
+            ],
+            [
+              405.0,
+              720.0
+            ],
+            0
+          ]
         ],
         [
           4.3,
-          "wide",
-          null
+          "single",
+          [
+            [
+              655.5,
+              360.0
+            ],
+            [
+              405.0,
+              720.0
+            ],
+            0
+          ]
         ],
         [
           4.8,
-          "wide",
-          null
+          "single",
+          [
+            [
+              655.5,
+              360.0
+            ],
+            [
+              405.0,
+              720.0
+            ],
+            0
+          ]
         ],
         [
           5.3,
-          "wide",
-          null
+          "single",
+          [
+            [
+              655.5,
+              360.0
+            ],
+            [
+              405.0,
+              720.0
+            ],
+            0
+          ]
         ],
         [
           5.8,
-          "wide",
-          null
+          "single",
+          [
+            [
+              655.5,
+              360.0
+            ],
+            [
+              405.0,
+              720.0
+            ],
+            0
+          ]
         ],
         [
           6.3,
-          "wide",
-          null
+          "single",
+          [
+            [
+              655.5,
+              360.0
+            ],
+            [
+              405.0,
+              720.0
+            ],
+            0
+          ]
         ],
         [
           6.8,
-          "wide",
-          null
+          "single",
+          [
+            [
+              655.5,
+              360.0
+            ],
+            [
+              405.0,
+              720.0
+            ],
+            0
+          ]
         ],
         [
           7.3,
@@ -415,18 +484,48 @@
         ],
         [
           9.8,
-          "wide",
-          null
+          "single",
+          [
+            [
+              407.7,
+              360.0
+            ],
+            [
+              405.0,
+              720.0
+            ],
+            0
+          ]
         ],
         [
           10.3,
-          "wide",
-          null
+          "single",
+          [
+            [
+              407.7,
+              360.0
+            ],
+            [
+              405.0,
+              720.0
+            ],
+            0
+          ]
         ],
         [
           10.8,
-          "wide",
-          null
+          "single",
+          [
+            [
+              407.7,
+              360.0
+            ],
+            [
+              405.0,
+              720.0
+            ],
+            0
+          ]
         ],
         [
           11.3,
@@ -435,48 +534,18 @@
         ],
         [
           11.8,
-          "single",
-          [
-            [
-              407.7,
-              360.0
-            ],
-            [
-              405.0,
-              720.0
-            ],
-            0
-          ]
+          "wide",
+          null
         ],
         [
           12.3,
-          "single",
-          [
-            [
-              407.7,
-              360.0
-            ],
-            [
-              405.0,
-              720.0
-            ],
-            0
-          ]
+          "wide",
+          null
         ],
         [
           12.8,
-          "single",
-          [
-            [
-              407.7,
-              360.0
-            ],
-            [
-              405.0,
-              720.0
-            ],
-            0
-          ]
+          "wide",
+          null
         ],
         [
           13.3,
@@ -595,23 +664,63 @@
         ],
         [
           24.82,
-          "wide",
-          null
+          "single",
+          [
+            [
+              624.1,
+              360.0
+            ],
+            [
+              405.0,
+              720.0
+            ],
+            0
+          ]
         ],
         [
           25.32,
-          "wide",
-          null
+          "single",
+          [
+            [
+              624.1,
+              360.0
+            ],
+            [
+              405.0,
+              720.0
+            ],
+            0
+          ]
         ],
         [
           25.82,
-          "wide",
-          null
+          "single",
+          [
+            [
+              624.1,
+              360.0
+            ],
+            [
+              405.0,
+              720.0
+            ],
+            0
+          ]
         ],
         [
           26.32,
-          "wide",
-          null
+          "single",
+          [
+            [
+              624.1,
+              360.0
+            ],
+            [
+              405.0,
+              720.0
+            ],
+            0
+          ]
         ],
         [
           26.82,
@@ -648,7 +757,7 @@
           "single",
           [
             [
-              624.1,
+              390.6,
               360.0
             ],
             [
@@ -663,7 +772,7 @@
           "single",
           [
             [
-              624.1,
+              390.6,
               360.0
             ],
             [
@@ -678,7 +787,7 @@
           "single",
           [
             [
-              624.1,
+              390.6,
               360.0
             ],
             [
@@ -693,7 +802,7 @@
           "single",
           [
             [
-              624.1,
+              390.6,
               360.0
             ],
             [
@@ -825,271 +934,11 @@
         ],
         [
           33.83,
-          "single",
-          [
-            [
-              390.6,
-              360.0
-            ],
-            [
-              405.0,
-              720.0
-            ],
-            0
-          ]
+          "wide",
+          null
         ],
         [
           34.33,
-          "single",
-          [
-            [
-              390.6,
-              360.0
-            ],
-            [
-              405.0,
-              720.0
-            ],
-            0
-          ]
-        ],
-        [
-          34.83,
-          "single",
-          [
-            [
-              390.6,
-              360.0
-            ],
-            [
-              405.0,
-              720.0
-            ],
-            0
-          ]
-        ],
-        [
-          35.33,
-          "single",
-          [
-            [
-              390.6,
-              360.0
-            ],
-            [
-              405.0,
-              720.0
-            ],
-            0
-          ]
-        ],
-        [
-          35.83,
-          "wide",
-          null
-        ],
-        [
-          36.33,
-          "wide",
-          null
-        ],
-        [
-          36.83,
-          "wide",
-          null
-        ],
-        [
-          37.33,
-          "wide",
-          null
-        ],
-        [
-          37.83,
-          "wide",
-          null
-        ],
-        [
-          38.33,
-          "wide",
-          null
-        ],
-        [
-          38.83,
-          "wide",
-          null
-        ],
-        [
-          39.33,
-          "wide",
-          null
-        ],
-        [
-          39.83,
-          "wide",
-          null
-        ],
-        [
-          40.33,
-          "wide",
-          null
-        ],
-        [
-          40.83,
-          "single",
-          [
-            [
-              634.5,
-              360.0
-            ],
-            [
-              405.0,
-              720.0
-            ],
-            0
-          ]
-        ],
-        [
-          41.33,
-          "single",
-          [
-            [
-              634.5,
-              360.0
-            ],
-            [
-              405.0,
-              720.0
-            ],
-            0
-          ]
-        ],
-        [
-          41.83,
-          "single",
-          [
-            [
-              634.5,
-              360.0
-            ],
-            [
-              405.0,
-              720.0
-            ],
-            0
-          ]
-        ],
-        [
-          42.33,
-          "single",
-          [
-            [
-              412.5,
-              360.0
-            ],
-            [
-              405.0,
-              720.0
-            ],
-            0
-          ]
-        ],
-        [
-          42.83,
-          "single",
-          [
-            [
-              412.5,
-              360.0
-            ],
-            [
-              405.0,
-              720.0
-            ],
-            0
-          ]
-        ],
-        [
-          43.34,
-          "single",
-          [
-            [
-              412.5,
-              360.0
-            ],
-            [
-              405.0,
-              720.0
-            ],
-            0
-          ]
-        ],
-        [
-          43.84,
-          "single",
-          [
-            [
-              412.5,
-              360.0
-            ],
-            [
-              405.0,
-              720.0
-            ],
-            0
-          ]
-        ],
-        [
-          44.34,
-          "single",
-          [
-            [
-              412.5,
-              360.0
-            ],
-            [
-              405.0,
-              720.0
-            ],
-            0
-          ]
-        ],
-        [
-          44.84,
-          "single",
-          [
-            [
-              412.5,
-              360.0
-            ],
-            [
-              405.0,
-              720.0
-            ],
-            0
-          ]
-        ],
-        [
-          45.34,
-          "single",
-          [
-            [
-              412.5,
-              360.0
-            ],
-            [
-              405.0,
-              720.0
-            ],
-            0
-          ]
-        ],
-        [
-          45.84,
-          "wide",
-          null
-        ],
-        [
-          46.34,
           "wide",
           null
         ]
@@ -1098,9 +947,9 @@
       "diarization": false
     },
     "thumbnail": {
-      "t": 3.25,
-      "score": 4.18
+      "t": 1.25,
+      "score": 6.57
     }
   },
-  "rendered_at": 1789648904.5215583
+  "rendered_at": 1789649105.0684795
 }

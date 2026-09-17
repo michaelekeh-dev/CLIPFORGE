@@ -28,6 +28,7 @@ def main(argv=None):
     ap.add_argument("--no-hook", action="store_true", help="no hook title at the top")
     ap.add_argument("--no-zooms", action="store_true", help="no punch-in zooms")
     ap.add_argument("--no-progress", action="store_true", help="no progress bar")
+    ap.add_argument("--no-broll", action="store_true", help="no B-roll shots")
     ap.add_argument("--credit", default=None, help="source channel name for the 3s credit line, e.g. @JumpersJump")
     ap.add_argument("--template", default=None, help="brand template id (default: the default template)")
     ap.add_argument("--out", default="output", help="output folder (default ./output)")
@@ -41,7 +42,7 @@ def main(argv=None):
         opts["clips"] = args.clips
     opts.update({"length": args.length, "start": args.start, "end": args.end, "layout": args.layout,
                  "style": args.style, "ratio": args.ratio, "emoji": not args.no_emoji, "hook": not args.no_hook,
-                 "zooms": not args.no_zooms, "progress_bar": not args.no_progress})
+                 "zooms": not args.no_zooms, "progress_bar": not args.no_progress, "broll": not args.no_broll})
     if args.filler:
         opts["filler"] = args.filler
     if args.credit is not None:

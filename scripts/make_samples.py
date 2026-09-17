@@ -41,7 +41,7 @@ def main():
                         "-crf", "28", "-c:a", "aac", "-b:a", "96k", "-movflags", "+faststart", small], check=True)
         sheet = out_dir / f"{name}_frames.jpg"
         subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", mp4, "-vf", "fps=2,scale=180:-1,tile=8x6", "-frames:v", "1", "-q:v", "5", sheet], check=True)
-        notes.append(f"- **{name}.mp4** score {d['score']} · {d['duration']}s · {d['start']:.1f}-{d['end']:.1f}s · {d['title']}")
+        notes.append(f"- **{name}.mp4** score {int(d['score'])} · {d['duration']}s · {d['start']:.1f}-{d['end']:.1f}s · {d['title']}")
     readme = out_dir / "README.md"
     head = f"# Samples for CLIPFORGE {release}\n\n" if not (prefix and readme.exists()) else readme.read_text() + "\n"
     readme.write_text(head + f"Source: `{Path(video).name}` (project {pid})\n\n" + "\n".join(notes) + "\n")

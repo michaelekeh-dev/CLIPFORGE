@@ -209,3 +209,25 @@ def test_hook_and_brand_overlays_shift_with_offset():
     frame = np.zeros((1920, 1080, 3), dtype=np.uint8)
     out = ov[0](frame, 0, 5.0)
     assert out.max() > 0  # watermark drawn
+
+
+def test_broll_suggestions_and_plan(tmp_path, monkeypatch):
+    from clipforge import broll
+    w = words_from("Look at the pyramids in Egypt and then the ocean waves and the city lights at night", step=1.0)
+    sugg = broll.suggestions({}, w, 0.0, 30.0)
+    assert 1 <= len(sugg) <= 2
+    assert all(s["t"] >= 3.0 for s in sugg)  # never in the first seconds
+    if len(sugg) == 2:
+        assert sugg[1]["t"] - sugg[0]["t"] >= 6.0
+    # without a key or mock dir the plan is empty (skip quietly)
+    monkeypatch.delenv("PEXELS_API_KEY", raising=False); monkeypatch.delenv("PEXELS_MOCK_DIR", raising=False)
+    assert broll.plan({}, w, Timeline.single(0, 30), {}, "9:16") == []
+    # with a mock dir a plan is made and editor overrides apply
+    vid = tmp_path / "a.mp4"
+    import subprocess
+    subprocess.run(["ffmpeg", "-v", "error", "-y", "-f", "lavfi", "-i", "testsrc=size=320x240:rate=10:duration=4", vid], check=True)
+    monkeypatch.setenv("PEXELS_MOCK_DIR", str(tmp_path))
+    plan = broll.plan({}, w, Timeline.single(0, 30), {"broll_items": {"0": {"query": "custom words"}}}, "9:16")
+    assert plan and plan[0]["query"] == "custom words" and 1.5 <= plan[0]["e"] - plan[0]["s"] <= 2.5
+    plan2 = broll.plan({}, w, Timeline.single(0, 30), {"broll_items": {"0": {"removed": True}}}, "9:16")
+    assert len(plan2) == len(plan) - 1

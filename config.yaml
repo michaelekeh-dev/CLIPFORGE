@@ -239,3 +239,14 @@ progress_bar:
 cards:
   intro_seconds: 0.8
   outro_seconds: 1.6
+
+broll:
+  enabled: true
+  max_per_clip: 2
+  min_seconds: 1.5
+  max_seconds: 2.5
+  # at least this far apart (seconds) and never in the first seconds of a clip
+  min_gap: 6.0
+  not_before: 3.0
+  # Pexels search: orientation portrait for 9:16
+  per_page: 5

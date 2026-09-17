@@ -87,6 +87,7 @@ const CF = (() => {
             <label class="check small"><input type="checkbox" class="hook-check" ${c.settings.hook === false ? '' : 'checked'}> Hook</label>
             <label class="check small"><input type="checkbox" class="zooms-check" ${c.settings.zooms === false ? '' : 'checked'}> Zooms</label>
             <label class="check small"><input type="checkbox" class="bar-check" ${c.settings.progress_bar === false ? '' : 'checked'}> Bar</label>
+            <label class="check small"><input type="checkbox" class="broll-check" ${c.settings.broll === false ? '' : 'checked'}> B-roll</label>
           </div>
           <div class="hook-row"><input class="input hook-text" placeholder="Hook text (6-8 words)" value="${esc(c.settings.hook_text || (c.hook && c.hook.text) || '')}" maxlength="80"><button class="btn secondary small rerender-btn" ${c.status === 'rendering' ? 'disabled' : ''}>Re-render</button></div>
           <div class="actions">
@@ -106,7 +107,7 @@ const CF = (() => {
             body: JSON.stringify({ style: $('.style-select', el).value, layout: $('.layout-select', el).value, emoji: $('.emoji-check', el).checked,
               filler: $('.filler-select', el).value, hook: $('.hook-check', el).checked, zooms: $('.zooms-check', el).checked,
               progress_bar: $('.bar-check', el).checked, hook_text: $('.hook-text', el).value.trim(),
-              ratio: $('.ratio-select', el).value, template: $('.template-select', el).value, render: true }) });
+              ratio: $('.ratio-select', el).value, template: $('.template-select', el).value, broll: $('.broll-check', el).checked, render: true }) });
           toast('Rendering again…'); poll();
         };
         $('.copy', el).onclick = () => copy(`${c.title}\n\n${c.description}\n\n${(c.hashtags || []).join(' ')}`);

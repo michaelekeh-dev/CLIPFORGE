@@ -14,10 +14,10 @@
   "description": "The real world is actually very messy. Hard logical rules are not the way to solve real world problems. So, machine learning is all about learning from...",
   "hashtags": [
     "#shorts",
+    "#world",
     "#machine",
-    "#learning",
-    "#data",
-    "#computer"
+    "#city",
+    "#learning"
   ],
   "key_words": [
     "world",
@@ -29,6 +29,7 @@
   "emojis": [],
   "hook": "",
   "zooms": [],
+  "broll": [],
   "text": "The real world is actually very messy. Hard logical rules are not the way to solve real world problems. So, machine learning is all about learning from examples. Rather than writing500,000 lines of code, we instead have the machine learn from observations about the world. And we looked through a bunch of these examples in the machine learning algorithm. Maybe millions, maybe billions, maybe even trillions, to identify the patterns and generalize from there. In the task of image recognition, we've been able to train models to take the pixels of an image and from those pixels learn high-level features.",
   "fact_check": {
     "type": "entertainment",
@@ -58,20 +59,16 @@
   },
   "pick_method": "heuristic (no ANTHROPIC_API_KEY)",
   "honest_title": "The real world is actually very messy",
-  "id": "c_77a9bd097e8a",
-  "project": "p_8919b0d456ef",
+  "id": "c_c527feb2fd7e",
+  "project": "p_1c7ba9d88ebc",
   "index": 1,
-  "source": "/home/user/CLIPFORGE/data/projects/p_8919b0d456ef/source.mp4",
+  "source": "/home/user/CLIPFORGE/data/projects/p_1c7ba9d88ebc/source.mp4",
   "original_start": 42.3,
   "original_end": 76.97,
-  "duration": 36.85,
+  "duration": 37.07,
   "timeline": [
     [
       42.3,
-      60.47
-    ],
-    [
-      60.69,
       76.97
     ]
   ],
@@ -85,43 +82,25 @@
     "zooms": true,
     "progress_bar": true,
     "template": "",
-    "edits": {
-      "start": 42.3,
-      "end": 76.97,
-      "deleted": [
-        [
-          60.47,
-          60.61
-        ],
-        [
-          60.63,
-          60.69
-        ]
-      ],
-      "text_fixes": {
-        "132": "IS"
-      },
-      "shot_layouts": {}
-    },
-    "hook_text": "Edited in the CLIPFORGE editor"
+    "broll": true
   },
   "render": {
-    "frames": 886,
+    "frames": 890,
     "fps": 23.976,
     "width": 1080,
     "height": 1920,
-    "duration": 36.85,
+    "duration": 37.07,
     "loudness": {
-      "input_i": "-24.42",
+      "input_i": "-24.41",
       "input_tp": "-8.39",
-      "input_lra": "2.60",
-      "input_thresh": "-34.74",
-      "output_i": "-14.12",
+      "input_lra": "2.50",
+      "input_thresh": "-34.72",
+      "output_i": "-14.11",
       "output_tp": "-1.50",
-      "output_lra": "2.00",
-      "output_thresh": "-24.40",
+      "output_lra": "2.20",
+      "output_thresh": "-24.38",
       "normalization_type": "dynamic",
-      "target_offset": "0.12"
+      "target_offset": "0.11"
     },
     "template": {
       "id": "t_d5e8d535e33b",
@@ -131,25 +110,35 @@
     "edits": {
       "start": 42.3,
       "end": 76.97,
-      "deleted": [
-        [
-          60.47,
-          60.61
-        ],
-        [
-          60.63,
-          60.69
-        ]
-      ],
-      "text_fixes": {
-        "132": "IS"
-      },
+      "deleted": [],
+      "text_fixes": {},
       "shot_layouts": {}
     },
     "lead_in": 0.8,
     "broll": {
-      "items": [],
-      "source": "off"
+      "items": [
+        {
+          "idx": 0,
+          "t": 48.77,
+          "word": "world",
+          "query": "planet earth",
+          "s": 7.12,
+          "e": 9.62,
+          "credit": "Pexels / mock",
+          "page": ""
+        },
+        {
+          "idx": 1,
+          "t": 57.1,
+          "word": "machine",
+          "query": "industrial machine",
+          "s": 15.45,
+          "e": 17.95,
+          "credit": "Pexels / mock",
+          "page": ""
+        }
+      ],
+      "source": "mock"
     },
     "captions": {
       "style": "bold_pop",
@@ -158,7 +147,7 @@
         "🌍",
         "🤖"
       ],
-      "lines": 99
+      "lines": 100
     },
     "filler": {
       "level": "light",
@@ -177,7 +166,7 @@
     ],
     "hook": {
       "on": true,
-      "text": "Edited in the CLIPFORGE editor"
+      "text": "The real world is actually very messy"
     },
     "reframe": {
       "layout_setting": "auto",
@@ -946,8 +935,8 @@
     },
     "thumbnail": {
       "t": 2.75,
-      "score": 1.71
+      "score": 1.72
     }
   },
-  "rendered_at": 1789648807.5347393
+  "rendered_at": 1789649040.9812443
 }
