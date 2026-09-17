@@ -6,6 +6,8 @@ from dataclasses import dataclass, field
 @dataclass
 class Timeline:
     pieces: list[tuple[float, float]] = field(default_factory=list)
+    lead_in: float = 0.0    # seconds of intro card before the first piece
+    lead_out: float = 0.0   # seconds of outro card after the last piece
 
     @classmethod
     def single(cls, start: float, end: float) -> "Timeline":
@@ -13,6 +15,10 @@ class Timeline:
 
     @property
     def duration(self) -> float:
+        return self.lead_in + sum(e - s for s, e in self.pieces) + self.lead_out
+
+    @property
+    def speech_duration(self) -> float:
         return sum(e - s for s, e in self.pieces)
 
     @property
@@ -25,7 +31,7 @@ class Timeline:
 
     def to_output(self, t: float) -> float | None:
         """Source time -> output time, or None if the moment was cut out."""
-        acc = 0.0
+        acc = self.lead_in
         for s, e in self.pieces:
             if s <= t <= e:
                 return acc + (t - s)
@@ -34,8 +40,8 @@ class Timeline:
 
     def to_output_clamped(self, t: float) -> float:
         """Like to_output but snaps removed times to the nearest kept edge."""
-        acc = 0.0
-        best = 0.0
+        acc = self.lead_in
+        best = self.lead_in
         for s, e in self.pieces:
             if t < s:
                 return acc
@@ -46,7 +52,9 @@ class Timeline:
         return best
 
     def to_source(self, t_out: float) -> float:
-        acc = 0.0
+        acc = self.lead_in
+        if t_out < acc:
+            return self.pieces[0][0]
         for s, e in self.pieces:
             if t_out <= acc + (e - s):
                 return s + (t_out - acc)
@@ -68,7 +76,7 @@ class Timeline:
                     out.append((ce, e))
             pieces = out
         pieces = [(s, e) for s, e in pieces if e - s > 0.04]
-        return Timeline(pieces)
+        return Timeline(pieces, self.lead_in, self.lead_out)
 
     def as_list(self) -> list[list[float]]:
         return [[round(s, 3), round(e, 3)] for s, e in self.pieces]

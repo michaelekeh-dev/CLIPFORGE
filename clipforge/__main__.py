@@ -24,6 +24,10 @@ def main(argv=None):
     ap.add_argument("--style", default="auto", help="caption preset, e.g. bold_pop, clean, faith")
     ap.add_argument("--ratio", default="9:16", choices=["9:16", "1:1", "16:9"])
     ap.add_argument("--no-emoji", action="store_true", help="no emoji in captions")
+    ap.add_argument("--filler", default=None, choices=["off", "light", "aggressive"], help="filler and silence removal")
+    ap.add_argument("--no-hook", action="store_true", help="no hook title at the top")
+    ap.add_argument("--no-zooms", action="store_true", help="no punch-in zooms")
+    ap.add_argument("--no-progress", action="store_true", help="no progress bar")
     ap.add_argument("--out", default="output", help="output folder (default ./output)")
     args = ap.parse_args(argv)
 
@@ -34,7 +38,10 @@ def main(argv=None):
     if args.clips:
         opts["clips"] = args.clips
     opts.update({"length": args.length, "start": args.start, "end": args.end, "layout": args.layout,
-                 "style": args.style, "ratio": args.ratio, "emoji": not args.no_emoji})
+                 "style": args.style, "ratio": args.ratio, "emoji": not args.no_emoji, "hook": not args.no_hook,
+                 "zooms": not args.no_zooms, "progress_bar": not args.no_progress})
+    if args.filler:
+        opts["filler"] = args.filler
     if args.keywords:
         opts["keywords"] = [k.strip() for k in args.keywords.split(",") if k.strip()]
     src = args.source

@@ -33,8 +33,11 @@ MOMENT_SCHEMA = {
                     "emojis": {"type": "array", "items": {"type": "object", "properties": {
                         "word": {"type": "string"}, "emoji": {"type": "string"}},
                         "required": ["word", "emoji"], "additionalProperties": False}},
+                    "hook": {"type": "string"},
+                    "zooms": {"type": "array", "items": {"type": "number"}},
                 },
-                "required": ["start", "end", "score", "reasons", "topic", "title", "description", "hashtags", "key_words", "emojis"],
+                "required": ["start", "end", "score", "reasons", "topic", "title", "description", "hashtags", "key_words",
+                             "emojis", "hook", "zooms"],
                 "additionalProperties": False,
             },
         }
@@ -97,7 +100,9 @@ def pick_moments(tr: dict, n: int, length: str, keywords: list[str], progress=No
                       "virality, one short sentence for each reason (hook, payoff, emotion, standalone, topic_match), "
                       "topic (3 words max), an honest catchy title (max 70 characters), a 1-2 sentence description, "
                       "5-8 hashtags, key_words: 1-3 words spoken in the clip worth highlighting in the captions, and emojis: "
-                      "up to 3 pairs of a spoken word plus one fitting emoji (spread out, none is fine).\n\n"
+                      "up to 3 pairs of a spoken word plus one fitting emoji (spread out, none is fine), "
+                      "hook: 6-8 honest words shown at the top for the first 3 seconds (no clickbait lies), "
+                      "zooms: 1-3 timestamps in seconds of punchlines or reveals worth a punch-in zoom.\n\n"
                       f"TRANSCRIPT:\n{chunk_text(ch)}")
             try:
                 out = llm.ask_json(prompt, system=SYSTEM, model=cfg.get("llm.pick_model"), schema=MOMENT_SCHEMA)
@@ -172,6 +177,8 @@ def snap(m: dict, words: list[dict], lo: float, hi: float) -> dict | None:
     out.setdefault("hashtags", [])
     out.setdefault("key_words", [])
     out.setdefault("emojis", [])
+    out.setdefault("hook", "")
+    out.setdefault("zooms", [])
     return out
 
 

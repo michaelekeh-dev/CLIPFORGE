@@ -107,3 +107,7 @@ code { background: var(--bg3); padding: .1em .35em; border-radius: 6px; font-siz
 .check input { width: 20px; height: 20px; accent-color: var(--accent); }
 .clip .tools { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .clip .tools select { flex: 1; padding: 8px 10px; font-size: .9rem; }
+.checks { display: flex; gap: 14px 22px; flex-wrap: wrap; }
+.clip .tools .check { flex: none; }
+.clip .hook-row { display: flex; gap: 8px; align-items: center; }
+.clip .hook-row .input { padding: 8px 10px; font-size: .9rem; }

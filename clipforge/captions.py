@@ -193,7 +193,8 @@ def choose_emojis(words: list[dict], every: float, key_words: set[str], suggesti
 
 
 def build_ass(words: list[dict], out_w: int, out_h: int, style: dict, ratio: str = "9:16",
-              key_words: list[str] | None = None, y_frac: float | None = None) -> tuple[str, list[dict]]:
+              key_words: list[str] | None = None, y_frac: float | None = None,
+              extra: tuple[list[str], list[str]] | None = None) -> tuple[str, list[dict]]:
     """Returns (ass text, emoji overlays [{s, e, x, y, emoji, size}]). Words must already be in output time."""
     c = cfg.get("captions")
     scale = out_w / 1080.0 if ratio != "16:9" else out_h / 1080.0 * 0.85
@@ -243,7 +244,7 @@ Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour,
 Style: Cap,{style['font']},{size},{primary},{primary},{outline_c},{shadow_c},0,0,0,0,100,100,0,0,1,{outline:.1f},{shadow:.1f},5,20,20,20,1
 Style: CapBox,{style['font']},{size},{primary},{primary},{hex_to_ass(style.get('other_box_color', '#000000A0'))},{shadow_c},0,0,0,0,100,100,0,0,3,{int(12 * scale)},0,5,20,20,20,1
 Style: Box,Arial,20,&H00FFFFFF,&H00FFFFFF,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,0,0,7,0,0,0,1
-
+{chr(10).join(extra[0]) if extra else ''}
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 """
@@ -302,6 +303,8 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                 gx = xs[k][1] - emoji_w + space_w * 0.5
                 overlays.append({"s": ws, "e": ln.end, "x": int(gx), "y": int(y_c - em_size / 2),
                                  "emoji": w["emoji"], "size": em_size})
+    if extra:
+        events.extend(extra[1])
     return head + "\n".join(events) + "\n", overlays
 
 

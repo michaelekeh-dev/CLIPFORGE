@@ -196,3 +196,42 @@ reframe:
   divider_color: "#0f1115"
   # What to do on shots with 3+ faces when layout is auto: wide | speaker
   three_plus: wide
+
+hook:
+  enabled: true
+  seconds: 3.0
+  font: Montserrat ExtraBold
+  size: 60
+  text_color: "#111111"
+  box_color: "#F5A524"
+  # top of the hook box as a share of the frame height
+  y_frac: 0.10
+  max_words: 8
+  # box | bar | plain
+  style: box
+
+zooms:
+  enabled: true
+  max_per_clip: 3
+  amount: 1.12
+  ease_in: 0.35
+  hold: 1.1
+  ease_out: 0.5
+  # no zoom this close to a camera cut (seconds)
+  cut_margin: 0.3
+
+filler:
+  # off | light | aggressive
+  level: light
+  fillers: [um, uh, uhm, umm, uhh, hmm, mm, er, erm, ah]
+  aggressive_fillers: [like, "you know", "i mean", "sort of", "kind of", basically, literally, actually]
+  # gaps between words longer than this are shortened
+  silence_gap: 0.6
+  keep_pause: {light: 0.3, aggressive: 0.18}
+  # keep this much air around every cut so no word is clipped
+  margin: 0.05
+
+progress_bar:
+  enabled: true
+  height: 8
+  color: "#F5A524"

@@ -146,3 +146,32 @@ def test_speaker_turns_switch_at_most_every_2s():
     ids = [t[2] for t in turns]
     assert ids[0] == 0 and ids[-1] == 1
     assert all(b - a >= 2.0 - 1e-6 for a, b, _, _ in turns[:-1])
+
+
+def test_filler_cuts_never_touch_kept_words():
+    from clipforge import filler
+    w = words_from("So um I I think the the answer is yes", step=0.5)
+    # add a long silence before the last word
+    w[-1]["s"] += 2.0; w[-1]["e"] += 2.0
+    cuts = filler.find_cuts(w, "light", None, start=0, end=10)
+    whys = " ".join(c["why"] for c in cuts)
+    assert "filler: um" in whys and "false start: I" in whys and "silence" in whys
+    kept = [x for x in w if not any(c["s"] <= x["s"] and x["e"] <= c["e"] for c in cuts)]
+    for x in kept:
+        for c in cuts:
+            assert c["e"] <= x["s"] + 1e-6 or c["s"] >= x["e"] - 1e-6  # never mid-word
+    tl = Timeline.single(0, 10).remove([(c["s"], c["e"]) for c in cuts])
+    assert tl.duration < 10
+
+
+def test_zoom_windows_avoid_cuts():
+    from clipforge import effects
+    tl = Timeline.single(10, 30)
+    shots = [{"start": 10, "end": 15}, {"start": 15, "end": 30}]
+    z = effects.zoom_windows([14.9, 20.0], tl, shots, 1.12)
+    assert len(z) >= 1
+    for w in z:
+        s_src, e_src = tl.to_source(w["s"]), tl.to_source(w["e"])
+        assert not (s_src < 15 < e_src)  # never across the cut
+    fn = effects.ZoomFn(z)
+    assert fn(z[0]["peak_s"] + 0.1) == 1.12 and fn(z[0]["e"] + 0.5) == 1.0

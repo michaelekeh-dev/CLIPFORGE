@@ -4,7 +4,7 @@ import json
 import shutil
 import time
 from pathlib import Path
-from . import db, media, download, transcribe, moments, factcheck, render, captions, reframe
+from . import db, media, download, transcribe, moments, factcheck, render, captions, reframe, filler, effects
 from .config import cfg as _cfg, output_size
 from .config import PROJECTS, cfg
 from .timeline import Timeline
@@ -30,7 +30,8 @@ def create_project(source: str, options: dict, title: str = "") -> str:
 def default_options() -> dict:
     return {"clips": int(cfg.get("moments.default_clips", 5)), "length": "auto",
             "keywords": list(cfg.get("moments.default_keywords", [])), "start": None, "end": None,
-            "ratio": "9:16", "layout": "auto", "style": "auto", "emoji": True}
+            "ratio": "9:16", "layout": "auto", "style": "auto", "emoji": True, "filler": cfg.get("filler.level", "light"),
+            "hook": True, "zooms": True, "progress_bar": True}
 
 
 def run_project(pid: str, progress) -> None:
@@ -96,7 +97,10 @@ def run_project(pid: str, progress) -> None:
                             "score": m["score"], "title": data["honest_title"], "status": "pending",
                             "data": data, "settings": {"ratio": opts.get("ratio", "9:16"), "layout": opts.get("layout", "auto"),
                                                        "style": opts.get("style", "auto"),
-                                                       "emoji": bool(opts.get("emoji", True))}})
+                                                       "emoji": bool(opts.get("emoji", True)),
+                                                       "filler": opts.get("filler", _cfg.get("filler.level", "light")),
+                                                       "hook": bool(opts.get("hook", True)), "zooms": bool(opts.get("zooms", True)),
+                                                       "progress_bar": bool(opts.get("progress_bar", True))}})
         clip_ids.append(cid)
     for i, cid in enumerate(clip_ids, start=1):
         base = 60 + 40 * (i - 1) / len(clip_ids)
@@ -122,6 +126,7 @@ def render_one(cid: str, progress=None) -> dict:
         tl = Timeline.single(clip["start"], clip["end"])
         work = pdir / "work" / cid
         ratio = settings.get("ratio", "9:16")
+        tr = json.loads((pdir / "transcript.json").read_text())
 
         def prog(stage, pct=None, status=None):
             db.update("clips", cid, {"stage": stage, "progress": pct or 0})
@@ -137,13 +142,33 @@ def render_one(cid: str, progress=None) -> dict:
         media.extract_audio(src, speech_wav, sr=16000, mono=True, start=tl.start, dur=tl.end - tl.start)
         analysis = reframe.analyze(src, tl.start, tl.end, pdir / "analysis", audio_wav=speech_wav,
                                    progress=lambda st, pct=None, status=None: prog(st, pct))
+        # filler words, false starts and long silences
+        level = settings.get("filler", _cfg.get("filler.level", "light"))
+        src_words = [w for w in tr["words"] if w["e"] > tl.start and w["s"] < tl.end]
+        cuts = []
+        if level in ("light", "aggressive"):
+            rms = reframe._audio_rms(speech_wav, tl.start, tl.end)
+            cuts = filler.find_cuts(src_words, level, rms, start=tl.start, end=tl.end)
+            tl = tl.remove([(c["s"], c["e"]) for c in cuts])
+        prog("Planning zooms", 0)
+        zoom_fn, zooms = None, []
+        if settings.get("zooms", bool(_cfg.get("zooms.enabled", True))):
+            times = effects.pick_zoom_times(data, src_words, int(_cfg.get("zooms.max_per_clip", 3)))
+            zooms = effects.zoom_windows(times, tl, analysis["shots"], float(_cfg.get("zooms.amount", 1.12)))
+            zoom_fn = effects.ZoomFn(zooms) if zooms else None
         framer = reframe.SmartFramer(analysis, info["width"], info["height"], ow, oh,
-                                     forced_layout=settings.get("layout", "auto"))
+                                     forced_layout=settings.get("layout", "auto"), zoom_fn=zoom_fn)
+        hook_on = settings.get("hook", bool(_cfg.get("hook.enabled", True)))
+        hook_text = (settings.get("hook_text") or data.get("hook") or effects.hook_text_from(clip["title"], data.get("text", ""))).strip()
+        extra = None
+        if hook_on and hook_text:
+            hstyle, hev = effects.hook_ass(hook_text, ow, oh, min(float(_cfg.get("hook.seconds", 3.0)), tl.duration - 0.5),
+                                          settings.get("hook_style") or None)
+            extra = ([hstyle], hev)
 
         # captions
         subtitles, overlay, cap_info = None, None, {}
         if settings.get("captions", True):
-            tr = json.loads((pdir / "transcript.json").read_text())
             words = captions.clip_words(tr["words"], tl)
             fc_type = (data.get("fact_check") or {}).get("type", "")
             style_name = settings.get("style") or "auto"
@@ -156,16 +181,25 @@ def render_one(cid: str, progress=None) -> dict:
                                        set(data.get("key_words") or []), data.get("emojis"))
             split_share = sum(sh["end"] - sh["start"] for sh in analysis["shots"] if sh["layout"] == "split") / max(0.1, tl.end - tl.start)
             y_frac = 0.5 if (split_share > 0.5 and ratio == "9:16" and settings.get("layout", "auto") in ("auto", "split")) else None
-            ass_text, em_overlays = captions.build_ass(words, ow, oh, st, ratio, key_words=data.get("key_words") or [], y_frac=y_frac)
+            ass_text, em_overlays = captions.build_ass(words, ow, oh, st, ratio, key_words=data.get("key_words") or [], y_frac=y_frac,
+                                                       extra=extra)
             subtitles = work / "captions.ass"
             subtitles.write_text(ass_text)
             overlay = captions.EmojiOverlay(em_overlays) if em_overlays else None
+        elif extra:
+            subtitles = work / "captions.ass"
+            subtitles.write_text(captions.build_ass([], ow, oh, captions.preset(None), ratio, extra=extra)[0])
+        if settings.get("progress_bar", bool(_cfg.get("progress_bar.enabled", True))):
+            overlay = effects.Compose([overlay, effects.ProgressBar(tl.duration, ow, oh, settings.get("accent") or None)])
             cap_info = {"style": st["name"], "words": len(words), "emojis": [o["emoji"] for o in em_overlays],
                         "lines": ass_text.count("Dialogue: 1,")}
             shutil.copy(subtitles, out_dir / f"clip_{clip['idx']:02d}.ass")
 
         result = render.render_clip(src, tl, out, work, framer=framer, ratio=ratio, subtitles=subtitles, overlays=overlay, progress=prog)
         result["captions"] = cap_info
+        result["filler"] = {"level": level, "cuts": cuts, "removed_seconds": round(sum(c["e"] - c["s"] for c in cuts), 2)}
+        result["zooms"] = zooms
+        result["hook"] = {"on": bool(hook_on and hook_text), "text": hook_text}
         result["reframe"] = {"layout_setting": settings.get("layout", "auto"), "shots": reframe.summary(analysis),
                              "keyframes": framer.keyframes, "lip_reader": analysis.get("lip_reader"),
                              "diarization": analysis.get("diarization")}

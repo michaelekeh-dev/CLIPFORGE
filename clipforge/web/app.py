@@ -213,6 +213,9 @@ def clip_json(c: dict) -> dict:
         "hashtags": d.get("hashtags") or [], "original_title": d.get("title", ""), "text": d.get("text", ""),
         "fact_check": fc, "badge": factcheck.badge(fc.get("verdict", "")), "settings": c["settings"] or {},
         "pick_method": d.get("pick_method", ""),
+        "hook": (d.get("render") or {}).get("hook") or {"text": d.get("hook", "")},
+        "filler": (d.get("render") or {}).get("filler") or {},
+        "zooms": (d.get("render") or {}).get("zooms") or [],
     }
 
 
@@ -246,12 +249,15 @@ def _parse_time(s: str | None) -> float | None:
 async def api_create_project(request: Request, url: str = Form(""), clips: int = Form(5), length: str = Form("auto"),
                              keywords: str = Form(""), start: str = Form(""), end: str = Form(""),
                              style: str = Form("auto"), emoji: str = Form("on"), layout: str = Form("auto"),
+                             filler: str = Form("light"), hook: str = Form("on"), zooms: str = Form("on"), progress_bar: str = Form("on"),
                              file: UploadFile | None = File(None)):
     opts = pipeline.default_options()
     opts.update({"clips": max(1, min(20, int(clips))), "length": length if length in ("auto", "short", "medium", "long") else "auto",
                  "keywords": [k.strip() for k in keywords.split(",") if k.strip()], "start": _parse_time(start), "end": _parse_time(end),
                  "style": style, "emoji": emoji in ("on", "true", "1"),
-                 "layout": layout if layout in ("auto", "single", "split", "wide") else "auto"})
+                 "layout": layout if layout in ("auto", "single", "split", "wide") else "auto",
+                 "filler": filler if filler in ("off", "light", "aggressive") else "light",
+                 "hook": hook in ("on", "true", "1"), "zooms": zooms in ("on", "true", "1"), "progress_bar": progress_bar in ("on", "true", "1")})
     title = ""
     if file is not None and file.filename:
         UPLOADS.mkdir(parents=True, exist_ok=True)

@@ -49,7 +49,19 @@
             <option value="wide">Whole picture with blurred edges</option>
           </select>
         </label>
-        <label class="check"><input type="checkbox" name="emoji" checked> Emoji in captions</label>
+        <label>Remove filler words and pauses
+          <select class="input" name="filler">
+            <option value="off">Off</option>
+            <option value="light" selected>Light</option>
+            <option value="aggressive">Aggressive</option>
+          </select>
+        </label>
+        <div class="checks span2">
+          <label class="check"><input type="checkbox" name="emoji" checked> Emoji in captions</label>
+          <label class="check"><input type="checkbox" name="hook" checked> Hook title at the top</label>
+          <label class="check"><input type="checkbox" name="zooms" checked> Punch-in zooms</label>
+          <label class="check"><input type="checkbox" name="progress_bar" checked> Progress bar</label>
+        </div>
       </div>
     </details>
     <button class="btn primary big" type="submit" id="startBtn">Make clips</button>

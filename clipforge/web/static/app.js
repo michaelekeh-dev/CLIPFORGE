@@ -77,9 +77,15 @@ const CF = (() => {
           <div class="tools">
             <select class="input style-select" title="Caption style">${styleOptions(c.settings.style || 'auto')}</select>
             <select class="input layout-select" title="Framing">${['auto','single','split','wide'].map(l => `<option value="${l}" ${(c.settings.layout || 'auto') === l ? 'selected' : ''}>${{auto:'Auto framing', single:'One person', split:'Two people', wide:'Whole picture'}[l]}</option>`).join('')}</select>
-            <label class="check small"><input type="checkbox" class="emoji-check" ${c.settings.emoji === false ? '' : 'checked'}> Emoji</label>
-            <button class="btn secondary small rerender-btn" ${c.status === 'rendering' ? 'disabled' : ''}>Re-render</button>
+            <select class="input filler-select" title="Filler removal">${['off','light','aggressive'].map(l => `<option value="${l}" ${(c.settings.filler || 'light') === l ? 'selected' : ''}>${{off:'Keep pauses', light:'Trim pauses: light', aggressive:'Trim pauses: aggressive'}[l]}</option>`).join('')}</select>
           </div>
+          <div class="tools">
+            <label class="check small"><input type="checkbox" class="emoji-check" ${c.settings.emoji === false ? '' : 'checked'}> Emoji</label>
+            <label class="check small"><input type="checkbox" class="hook-check" ${c.settings.hook === false ? '' : 'checked'}> Hook</label>
+            <label class="check small"><input type="checkbox" class="zooms-check" ${c.settings.zooms === false ? '' : 'checked'}> Zooms</label>
+            <label class="check small"><input type="checkbox" class="bar-check" ${c.settings.progress_bar === false ? '' : 'checked'}> Bar</label>
+          </div>
+          <div class="hook-row"><input class="input hook-text" placeholder="Hook text (6-8 words)" value="${esc(c.settings.hook_text || (c.hook && c.hook.text) || '')}" maxlength="80"><button class="btn secondary small rerender-btn" ${c.status === 'rendering' ? 'disabled' : ''}>Re-render</button></div>
           <div class="actions">
             <a class="btn primary small" href="${c.download_url}" ${c.status === 'done' ? '' : 'aria-disabled="true" style="opacity:.5;pointer-events:none"'}>Download</a>
             <button class="btn secondary small copy">Copy title + tags</button>
@@ -93,7 +99,9 @@ const CF = (() => {
         const rr2 = $('.rerender-btn', el); if (rr2) rr2.onclick = async () => {
           rr2.disabled = true;
           await api(`/api/clips/${c.id}/settings`, { method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ style: $('.style-select', el).value, layout: $('.layout-select', el).value, emoji: $('.emoji-check', el).checked, render: true }) });
+            body: JSON.stringify({ style: $('.style-select', el).value, layout: $('.layout-select', el).value, emoji: $('.emoji-check', el).checked,
+              filler: $('.filler-select', el).value, hook: $('.hook-check', el).checked, zooms: $('.zooms-check', el).checked,
+              progress_bar: $('.bar-check', el).checked, hook_text: $('.hook-text', el).value.trim(), render: true }) });
           toast('Rendering again…'); poll();
         };
         $('.copy', el).onclick = () => copy(`${c.title}\n\n${c.description}\n\n${(c.hashtags || []).join(' ')}`);
