@@ -231,3 +231,21 @@ def test_broll_suggestions_and_plan(tmp_path, monkeypatch):
     assert plan and plan[0]["query"] == "custom words" and 1.5 <= plan[0]["e"] - plan[0]["s"] <= 2.5
     plan2 = broll.plan({}, w, Timeline.single(0, 30), {"broll_items": {"0": {"removed": True}}}, "9:16")
     assert len(plan2) == len(plan) - 1
+
+
+def test_status_and_cleanup(tmp_path):
+    from fastapi.testclient import TestClient
+    from clipforge.web.app import app, status_info
+    from clipforge import db, pipeline
+    st = status_info()
+    assert set(st["have"]) == {"anthropic", "cookies", "pexels", "hf", "password"} and "storage_gb" in st
+    client = TestClient(app)
+    assert client.get("/health").status_code == 200
+    assert client.get("/manifest.webmanifest").status_code == 200
+    # an old project's source video gets deleted, its clips stay
+    src = tmp_path / "old.mp4"; src.write_bytes(b"x" * 1000)
+    pid = pipeline.create_project(str(src), {})
+    db.update("projects", pid, {"created_at": 0, "source_path": str(src)})
+    freed = pipeline.cleanup_old_sources(days=7)
+    assert freed >= 1000 and not src.exists()
+    pipeline.delete_project(pid)

@@ -1,0 +1,9 @@
+data/
+output/
+samples/
+.git/
+.env
+__pycache__/
+*.pyc
+.pytest_cache/
+tests/

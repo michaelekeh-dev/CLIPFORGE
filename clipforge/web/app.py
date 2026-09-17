@@ -22,6 +22,29 @@ db.init_db()
 from .editor import router as editor_router  # noqa: E402
 app.include_router(editor_router)
 
+
+def _housekeeping():
+    """Once a day: delete source videos older than the configured number of days; recover jobs left 'running' by a crash."""
+    import threading
+    import time as _t
+
+    def loop():
+        from ..jobs import recover_dead_jobs
+        recover_dead_jobs()
+        while True:
+            try:
+                pipeline.cleanup_old_sources()
+            except Exception as e:  # noqa: BLE001
+                db.log_error("cleanup", str(e))
+            _t.sleep(24 * 3600)
+
+    threading.Thread(target=loop, daemon=True, name="housekeeping").start()
+
+
+@app.on_event("startup")
+def _on_startup():
+    _housekeeping()
+
 SESSION_DAYS = 30
 
 
@@ -90,7 +113,7 @@ def login(request: Request, password: str = Form(""), next: str = Form("/")):
     if secrets.compare_digest(password, env("APP_PASSWORD")):
         resp = RedirectResponse(next if next.startswith("/") else "/", status_code=303)
         resp.set_cookie("cf_session", signer.dumps({"t": now}), max_age=SESSION_DAYS * 86400, httponly=True,
-                        samesite="lax", secure=bool(cfg.get("app.https", False)))
+                        samesite="lax", secure=bool(cfg.get("app.https", False)) or env("APP_HTTPS") in ("1", "true"))
         _attempts.pop(ip, None)
         return resp
     tries.append(now)
@@ -270,6 +293,62 @@ def clip_editor_page(request: Request, cid: str):
     if not c:
         raise HTTPException(404)
     return page(request, "editor.html", clip=clip_json(dict(c)), presets=caption_presets(), templates_=brand.all_templates())
+
+
+@app.get("/manifest.webmanifest")
+def manifest():
+    return FileResponse(HERE / "static" / "manifest.webmanifest", media_type="application/manifest+json")
+
+
+@app.get("/sw.js")
+def service_worker():
+    return FileResponse(HERE / "static" / "sw.js", media_type="application/javascript", headers={"Service-Worker-Allowed": "/"})
+
+
+def status_info() -> dict:
+    import os
+    import shutil as _sh
+    from datetime import datetime
+    from ..config import DATA
+    from .. import transcribe
+    used = 0
+    for root, _, files in os.walk(DATA):
+        for f in files:
+            try:
+                used += os.path.getsize(os.path.join(root, f))
+            except OSError:
+                pass
+    free = _sh.disk_usage(DATA).free
+    errors = db.rows("SELECT * FROM errors ORDER BY id DESC LIMIT 12")
+    for e in errors:
+        e["when"] = datetime.fromtimestamp(e["at"]).strftime("%d %b %H:%M")
+        e["message"] = (e["message"] or "").split("\n")[0]
+    return {
+        "storage_gb": round(used / 1e9, 2), "free_gb": round(free / 1e9, 1), "jobs_running": runner.running_count(),
+        "jobs_queued": (db.row("SELECT COUNT(*) AS n FROM jobs WHERE status='queued'") or {}).get("n", 0),
+        "projects": (db.row("SELECT COUNT(*) AS n FROM projects") or {}).get("n", 0),
+        "clips": (db.row("SELECT COUNT(*) AS n FROM clips WHERE status='done'") or {}).get("n", 0),
+        "device": device(), "cpus": os.cpu_count(), "transcriber": transcribe.choose_backend(),
+        "have": {"anthropic": bool(env("ANTHROPIC_API_KEY")), "cookies": bool(env("YTDLP_COOKIES")), "pexels": bool(env("PEXELS_API_KEY")),
+                 "hf": bool(env("HF_TOKEN")), "password": bool(env("APP_PASSWORD"))},
+        "delete_days": cfg.get("app.delete_sources_after_days", 7), "errors": errors,
+    }
+
+
+@app.get("/status", response_class=HTMLResponse)
+def status_page(request: Request):
+    return page(request, "status.html", st=status_info())
+
+
+@app.get("/api/status")
+def api_status():
+    return status_info()
+
+
+@app.post("/api/cleanup")
+def api_cleanup():
+    freed = pipeline.cleanup_old_sources()
+    return RedirectResponse(f"/status?freed={freed}", status_code=303)
 
 
 @app.get("/health")

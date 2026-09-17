@@ -7,6 +7,12 @@
 <title>{% block title %}CLIPFORGE{% endblock %}</title>
 <link rel="stylesheet" href="/static/app.css?v={{ version }}">
 <link rel="icon" href="/static/icon.svg" type="image/svg+xml">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="apple-touch-icon" href="/static/icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="CLIPFORGE">
+<meta name="mobile-web-app-capable" content="yes">
 </head>
 <body>
 <header class="top">
@@ -14,6 +20,7 @@
   <nav>
     {% block nav %}{% endblock %}
     <a class="muted" href="/templates">Brand</a>
+    <a class="muted" href="/status">Status</a>
     {% if has_password %}<a class="muted" href="/logout">Log out</a>{% endif %}
   </nav>
 </header>
@@ -22,7 +29,9 @@
 {% block content %}{% endblock %}
 </main>
 <div id="toast" class="toast"></div>
+<div id="splash" class="splash"><div class="logo"><span>▶</span> CLIPFORGE</div><div class="spinner"></div></div>
 <script src="/static/app.js?v={{ version }}"></script>
+<script>if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {});</script>
 {% block scripts %}{% endblock %}
 </body>
 </html>

@@ -31,7 +31,14 @@ Output lands in `output/<project id>/clip_01.mp4` with a `clip_01.json` next to 
 4. Claude Haiku fact-checks every clip and writes an honest title.
 5. Render: frame for 9:16, loudness at -14 LUFS, then captions and effects.
 
-See `config.yaml` for every tunable value and `DEPLOY.md` for hosting.
+## Run it in the cloud
+
+One small server (about €7/month) runs everything on the CPU. `DEPLOY.md` has click-by-click steps:
+create the server, `git clone`, fill in `.env`, run `bash deploy.sh`. HTTPS comes from Caddy, data lives in a
+Docker volume, the container restarts on crash, source videos are deleted after 7 days, and the app installs on
+your phone's home screen (PWA). `/status` shows storage, jobs and recent errors.
+
+See `config.yaml` for every tunable value.
 
 ## Tests
 

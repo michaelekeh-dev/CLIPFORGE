@@ -55,7 +55,8 @@ CREATE TABLE IF NOT EXISTS jobs (
   stage TEXT DEFAULT '',
   progress REAL DEFAULT 0,
   error TEXT DEFAULT '',
-  created_at REAL, started_at REAL, finished_at REAL
+  created_at REAL, started_at REAL, finished_at REAL,
+  owner_pid INTEGER DEFAULT 0
 );
 CREATE TABLE IF NOT EXISTS templates (
   id TEXT PRIMARY KEY,
@@ -94,6 +95,9 @@ def init_db():
     with _lock:
         c = con()
         c.executescript(SCHEMA)
+        cols = {r[1] for r in c.execute("PRAGMA table_info(jobs)").fetchall()}
+        if "owner_pid" not in cols:
+            c.execute("ALTER TABLE jobs ADD COLUMN owner_pid INTEGER DEFAULT 0")
         c.commit()
 
 

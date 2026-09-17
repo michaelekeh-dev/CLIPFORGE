@@ -1,5 +1,6 @@
 """Background jobs with progress. One small thread pool; the web app never blocks."""
 from __future__ import annotations
+import os
 import threading
 import time
 import traceback
@@ -38,7 +39,7 @@ class JobRunner:
 
     def submit(self, kind: str, target_id: str, fn: Callable[[Progress], None]) -> str:
         job_id = db.new_id("job_")
-        db.insert("jobs", {"id": job_id, "kind": kind, "target_id": target_id, "status": "queued"})
+        db.insert("jobs", {"id": job_id, "kind": kind, "target_id": target_id, "status": "queued", "owner_pid": os.getpid()})
         db.update(kind, target_id, {"status": "queued", "stage": "Waiting to start", "progress": 0, "error": ""})
         self.pool.submit(self._run, job_id, kind, target_id, fn)
         return job_id
@@ -65,6 +66,22 @@ class JobRunner:
     def running_count(self) -> int:
         with self._lock:
             return len(self.running)
+
+
+def recover_dead_jobs() -> int:
+    """Jobs left running/queued by a process that no longer exists are marked as errors (with a retry hint)."""
+    n = 0
+    for j in db.rows("SELECT * FROM jobs WHERE status IN ('running','queued')"):
+        pid = int(j.get("owner_pid") or 0)
+        if pid and pid != os.getpid() and os.path.exists(f"/proc/{pid}"):
+            continue  # another live server process owns it
+        if pid == os.getpid():
+            continue
+        msg = "The app restarted while this was running. Press Try again."
+        db.update("jobs", j["id"], {"status": "error", "error": msg, "finished_at": time.time()})
+        db.update(j["kind"], j["target_id"], {"status": "error", "error": msg})
+        n += 1
+    return n
 
 
 def friendly_error(e: Exception) -> str:

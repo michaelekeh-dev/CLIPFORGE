@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}Status · CLIPFORGE{% endblock %}
+{% block nav %}<a class="muted" href="/">All projects</a>{% endblock %}
+{% block content %}
+<h1>Status</h1>
+<div class="stats">
+  <div class="card stat"><div class="muted small">Storage used</div><div class="big">{{ st.storage_gb }} GB</div><div class="muted small">{{ st.free_gb }} GB free on disk</div></div>
+  <div class="card stat"><div class="muted small">Jobs running</div><div class="big">{{ st.jobs_running }}</div><div class="muted small">{{ st.jobs_queued }} waiting</div></div>
+  <div class="card stat"><div class="muted small">Projects</div><div class="big">{{ st.projects }}</div><div class="muted small">{{ st.clips }} clips</div></div>
+  <div class="card stat"><div class="muted small">Machine</div><div class="big">{{ st.device|upper }}</div><div class="muted small">{{ st.cpus }} CPUs · speech: {{ st.transcriber }}</div></div>
+</div>
+<section class="card">
+  <h3>Keys</h3>
+  <ul class="plain">
+    <li>{{ '🟢' if st.have.anthropic else '🔴' }} Anthropic key {{ '' if st.have.anthropic else '(clips are picked by a keyword rule until you add it)' }}</li>
+    <li>{{ '🟢' if st.have.cookies else '🟡' }} YouTube cookies {{ '' if st.have.cookies else '(YouTube may block downloads from this server; upload files if it does)' }}</li>
+    <li>{{ '🟢' if st.have.pexels else '🟡' }} Pexels key {{ '' if st.have.pexels else '(no B-roll)' }}</li>
+    <li>{{ '🟢' if st.have.hf else '🟡' }} Hugging Face token {{ '' if st.have.hf else '(speaker detection uses lip movement)' }}</li>
+    <li>{{ '🟢' if st.have.password else '🔴' }} App password {{ '' if st.have.password else '(anyone can open the app!)' }}</li>
+  </ul>
+  <p class="muted small">Source videos are deleted automatically after {{ st.delete_days }} days. Clips are kept. Version {{ version }}.</p>
+  <form method="post" action="/api/cleanup"><button class="btn secondary small" type="submit">Delete old source videos now</button></form>
+</section>
+<section class="card">
+  <h3>Recent errors</h3>
+  {% if st.errors %}<ul class="plain small">{% for e in st.errors %}<li><b>{{ e.when }}</b> · {{ e.where_ }}<br><span class="muted">{{ e.message[:300] }}</span></li>{% endfor %}</ul>{% else %}<p class="muted">None. Nice.</p>{% endif %}
+</section>
+{% endblock %}

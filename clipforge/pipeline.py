@@ -284,7 +284,7 @@ def cleanup_old_sources(days: float | None = None):
     freed = 0
     for p in db.rows("SELECT id, source_path, created_at FROM projects"):
         sp = Path(p["source_path"] or "")
-        if p["created_at"] and p["created_at"] < cutoff and sp.exists() and sp.is_file():
+        if p["created_at"] is not None and p["created_at"] < cutoff and sp.exists() and sp.is_file():
             freed += sp.stat().st_size
             sp.unlink(missing_ok=True)
             for extra in ("audio16k.wav",):

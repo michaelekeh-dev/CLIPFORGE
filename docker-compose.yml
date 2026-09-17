@@ -1,0 +1,39 @@
+# One command: bash deploy.sh   (or: docker compose up -d --build)
+services:
+  clipforge:
+    build: .
+    image: clipforge:latest
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      - CLIPFORGE_DATA_DIR=/data
+      - APP_HTTPS=1
+    volumes:
+      - clipforge_data:/data
+    expose:
+      - "8000"
+    # On a machine with an NVIDIA GPU: install requirements-gpu.txt in the image and uncomment:
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices: [{driver: nvidia, count: 1, capabilities: [gpu]}]
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      - SITE_ADDRESS=${SITE_ADDRESS:-:80}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - clipforge
+
+volumes:
+  clipforge_data:
+  caddy_data:
+  caddy_config:

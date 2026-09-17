@@ -124,3 +124,12 @@ code { background: var(--bg3); padding: .1em .35em; border-radius: 6px; font-siz
 ::view-transition-old(root), ::view-transition-new(root) { animation-duration: .28s; }
 .clip .edit-link { align-self: flex-start; }
 .clip a.title:hover { color: var(--accent2); }
+.splash { display: none; position: fixed; inset: 0; background: var(--bg); place-content: center; gap: 16px; z-index: 100; animation: splashOut .5s ease .35s both; pointer-events: none; }
+.splash .logo { font-weight: 800; letter-spacing: .1em; font-size: 1.5rem; text-align: center; } .splash .logo span { color: var(--accent); }
+@keyframes splashOut { to { opacity: 0; visibility: hidden; } }
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 14px; }
+.stat .big { font-size: 1.8rem; font-weight: 800; margin: 4px 0; }
+ul.plain { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 8px; }
+.top nav { flex-wrap: wrap; justify-content: flex-end; }
+@media (display-mode: standalone) { .splash { display: grid; } }
+@media (max-width: 480px) { .top nav { font-size: .8rem; gap: 10px; } }

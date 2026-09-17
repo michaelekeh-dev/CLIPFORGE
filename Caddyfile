@@ -1,0 +1,14 @@
+# Caddy gives you automatic HTTPS (needed for the phone home-screen app).
+# SITE_ADDRESS comes from .env, e.g.  SITE_ADDRESS=clips.example.com  or  SITE_ADDRESS=1-2-3-4.sslip.io
+{$SITE_ADDRESS} {
+	encode zstd gzip
+	request_body {
+		max_size 8GB
+	}
+	reverse_proxy clipforge:8000 {
+		transport http {
+			read_timeout 30m
+			write_timeout 30m
+		}
+	}
+}
