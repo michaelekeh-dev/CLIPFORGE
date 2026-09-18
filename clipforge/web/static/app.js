@@ -48,7 +48,10 @@ const CF = (() => {
     const render = (p) => {
       $('#ptitle').textContent = p.title;
       if (p.thumb_url && !$('#head .thumb img')) $('#head .thumb').innerHTML = `<img src="${p.thumb_url}" alt="">`;
-      $('#pmeta').textContent = (p.duration ? Math.round(p.duration / 60) + ' min' : '') + (p.info && p.info.pick_method ? ' · picked by ' + p.info.pick_method.replace(/\(.*\)/, '').trim() : '');
+      // Show the REASON, do not strip it. This read "picked by heuristic" whether the key was
+      // missing or Claude had errored, so a whole episode could be picked by the keyword rule
+      // and look like a deliberate setting. The parenthetical is the only thing that says why.
+      $('#pmeta').textContent = (p.duration ? Math.round(p.duration / 60) + ' min' : '') + (p.info && p.info.pick_method ? ' · picked by ' + p.info.pick_method.trim() : '');
       const running = p.status === 'running' || p.status === 'queued';
       $('#progress').classList.toggle('hidden', !running);
       $('#errorBox').classList.toggle('hidden', p.status !== 'error');

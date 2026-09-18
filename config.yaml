@@ -44,11 +44,21 @@ llm:
 moments:
   default_clips: 5
   # Length presets in seconds: auto picks whatever reads best inside min..max
+  # auto's floor was 15s and the picker took it. 15s is long enough to hold a setup and almost
+  # never long enough to hold the payoff as well, so clips ended mid-thought. 25s is about the
+  # shortest a complete point survives in. Use the `short` preset if you really do want 10-30s.
   lengths:
-    auto:   {min: 15, max: 90}
+    auto:   {min: 25, max: 90}
     short:  {min: 10, max: 30}
     medium: {min: 30, max: 60}
     long:   {min: 60, max: 90}
+  # How far a clip may run OVER max when that is what it takes to land the payoff on a sentence
+  # end. Running long is recoverable; cutting the point off is not.
+  overflow_grace: 8.0
+  # Two clips whose spoken words overlap more than this are the same clip twice (0-1)
+  max_similarity: 0.45
+  # How many clips may share one topic before variety wins
+  max_per_topic: 1
   # Padding added around the snapped words
   pad_before: 0.15
   pad_after: 0.35

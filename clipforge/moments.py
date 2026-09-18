@@ -51,11 +51,23 @@ MOMENT_SCHEMA = {
 
 SYSTEM = """You are a senior short-form video editor. You pick the moments from a long talking video that would work
 best as standalone vertical Shorts for a channel about theories, history and Christian faith content.
+
+A moment is a WHOLE THOUGHT, not a soundbite. Setup, then the turn, then the payoff. If the clip
+ends before the point lands, it is worthless however good the opening line was — a viewer who has
+to go find the rest will just leave.
+
 Rules for every moment:
 - start on a strong first sentence (a hook, a question, a bold claim, a story opening), never mid-sentence
-- end on a natural ending (the payoff, the punchline, the conclusion), never mid-sentence
-- it must make complete sense to someone who has not seen the rest of the video
-- keep it within the requested length; use the transcript timestamps exactly (seconds)
+- end AFTER the payoff has been said: the answer to the question, the punchline, the conclusion, the
+  "and that's why...". Never end on the setup. Never end mid-sentence.
+- if the point takes longer than the suggested length, TAKE THE TIME. Going over is fine; cutting
+  the payoff off is not. A complete 40-second story beats a 15-second fragment every time.
+- it must make complete sense to someone who has not seen the rest of the video: no "like I said",
+  no "that guy" with no introduction, no pronoun with nothing to point at
+- never pick two moments that make the SAME POINT. Different timestamps are not enough — if two
+  moments would leave a viewer with the same takeaway, keep only the better one and find something
+  genuinely different for the other slot. Spread your picks across the whole part you were given.
+- use the transcript timestamps exactly (seconds)
 - never invent or change what was said; titles must be honest and frame theories as theories
 Return JSON only."""
 
@@ -92,14 +104,23 @@ def pick_moments(tr: dict, n: int, length: str, keywords: list[str], progress=No
     if llm.mode() == "live":
         chunks = chunk_transcript(tr, float(cfg.get("llm.chunk_seconds", 1200)))
         per = max(int(cfg.get("llm.candidates_per_chunk", 8)), n)
+        taken: list[str] = []   # topics earlier parts already used — each chunk was blind to this
         for i, ch in enumerate(chunks):
             if progress:
                 progress("Finding best moments", 42 + 12 * i / max(1, len(chunks)))
+            # Every part was asked the same question with no memory, so on a show that circles one
+            # subject all episode each part dutifully returned its own version of the same moment.
+            avoid = (f"Parts before this one already covered: {'; '.join(taken[-12:])}. "
+                     "Pick moments that are genuinely ABOUT something else — a different story, claim "
+                     "or bit. Only repeat a subject if this part says something clearly new about it.\n"
+                     if taken else "")
             prompt = (f"Video part {i + 1} of {len(chunks)} ({fmt_ts(ch['start'])} to {fmt_ts(ch['end'])}).\n"
-                      f"Pick up to {per} of the best moments, each between {lo:.0f} and {hi:.0f} seconds long.\n"
+                      f"Pick up to {per} of the best moments, each about {lo:.0f}-{hi:.0f} seconds — run over if "
+                      "that is what it takes to include the payoff.\n"
+                      + avoid +
                       f"Topic keywords the channel cares about (bonus, not a must): {', '.join(keywords) or 'none'}.\n"
-                      "For each moment give: start and end in seconds (use the [timestamps]; end = the timestamp of the "
-                      "sentence after the last one you keep, or the moment the last sentence ends), score 0-100 for "
+                      "For each moment give: start and end in seconds (use the [timestamps]; end = the moment the LAST "
+                      "SENTENCE YOU KEEP finishes — the one carrying the payoff, not the one before it), score 0-100 for "
                       "virality, one short sentence for each reason (hook, payoff, emotion, standalone, topic_match), "
                       "topic (3 words max), an honest catchy title (max 70 characters), a 1-2 sentence description, "
                       "5-8 hashtags, key_words: 1-3 words spoken in the clip worth highlighting in the captions, and emojis: "
@@ -116,6 +137,9 @@ def pick_moments(tr: dict, n: int, length: str, keywords: list[str], progress=No
                 out = llm.ask_json(prompt, system=SYSTEM, model=cfg.get("llm.pick_model"), schema=MOMENT_SCHEMA)
                 for m in out.get("moments", []):
                     cands.append(m)
+                    t = str(m.get("topic") or "").strip()
+                    if t and t.lower() not in [x.lower() for x in taken]:
+                        taken.append(t)
             except llm.LLMError as e:
                 method = f"heuristic (Claude failed: {e})"
                 cands = []
@@ -158,25 +182,48 @@ def snap(m: dict, words: list[dict], lo: float, hi: float) -> dict | None:
     while k > 0 and not SENT_END.search(words[k - 1]["w"]) and words[i]["s"] - words[k - 1]["s"] < 2.5:
         k -= 1
     i = k
-    # extend end to a sentence end within 3s if not already
+    # ── THE CLIP MUST END WHERE THE THOUGHT ENDS ────────────────────────────────────────────
+    # This gave up looking for the end of the sentence after 3 seconds, and then — the real
+    # damage — the trim loop below walked the end back ONE WORD AT A TIME ("else j - 1") when
+    # it could not find a sentence boundary that still met the minimum. Both roads end the clip
+    # in the middle of a sentence, which is the "it cut 15 seconds in like it never heard the
+    # full story" complaint: the setup is in, the payoff is not.
+    #
+    # Now: look further for the sentence end, and let a clip run OVER the maximum by a grace
+    # window when the only thing standing between it and a complete thought is a few seconds.
+    # A 38-second clip that lands its punchline beats a 30-second clip that does not.
+    # ONE budget, not two. The first version of this had a separate "look ahead N seconds" window
+    # AND the length ceiling, and the gap between them was a dead zone: a sentence ending exactly
+    # at the look-ahead limit was neither reached nor rejected cleanly, so a good clip was thrown
+    # away. How far we may run is `hi + grace` and nothing else.
+    dur = lambda a, b: words[b]["e"] - words[a]["s"]
+    grace = float(cfg.get("moments.overflow_grace", 8.0))
+    last = len(words) - 1
+    ends_clean = lambda k: bool(SENT_END.search(words[k]["w"])) or k >= last
     k = j
-    while k + 1 < len(words) and not SENT_END.search(words[k]["w"]) and words[k + 1]["e"] - words[j]["e"] < 3.0:
+    while k + 1 < len(words) and not ends_clean(k) and dur(i, k + 1) <= hi + grace:
         k += 1
-    if SENT_END.search(words[k]["w"]):
+    if ends_clean(k):
         j = k
-    # trim to max length at a sentence end, else at a word
-    while words[j]["e"] - words[i]["s"] > hi and j > i:
-        k = j - 1
-        while k > i and not SENT_END.search(words[k]["w"]):
+    # Too long, or still stranded mid-sentence: walk back to the LAST sentence end that is
+    # still long enough. Never to a bare word — a clean 20 seconds beats a ragged 30.
+    if dur(i, j) > hi + grace or not ends_clean(j):
+        k = j
+        while k > i and not (ends_clean(k) and lo <= dur(i, k) <= hi + grace):
             k -= 1
-        j = k if k > i and words[k]["e"] - words[i]["s"] >= lo else j - 1
-    if words[j]["e"] - words[i]["s"] < max(3.0, lo * 0.6):
+        if k > i and ends_clean(k) and dur(i, k) >= lo:
+            j = k
+        else:
+            return None   # this candidate cannot be ended on a complete thought — drop it
+    if dur(i, j) < max(3.0, lo * 0.6):
         return None
     pb, pa = float(cfg.get("moments.pad_before", 0.15)), float(cfg.get("moments.pad_after", 0.35))
     out = dict(m)
     out["start"] = round(max(0.0, words[i]["s"] - pb), 3)
     out["end"] = round(words[j]["e"] + pa, 3)
     out["wi"], out["wj"] = i, j
+    # what was actually SAID — dedupe compares this, not the title the model wrote for it
+    out["text"] = " ".join(w["w"] for w in words[i:j + 1])
     out["score"] = int(max(0, min(100, int(m.get("score", 50)))))
     out.setdefault("reasons", {})
     out.setdefault("topic", "")
@@ -191,13 +238,93 @@ def snap(m: dict, words: list[dict], lo: float, hi: float) -> dict | None:
     return out
 
 
+STOP = {"that", "this", "they", "them", "then", "there", "with", "what", "when", "have", "been", "were", "your",
+        "from", "just", "like", "know", "about", "would", "could", "because", "really", "thing", "things", "gonna",
+        "want", "said", "says", "yeah", "okay", "right", "actually", "something", "everything", "people", "going"}
+
+
+def _content(text: str) -> set[str]:
+    """Content words only — the words that say what a clip is ABOUT.
+
+    Contractions are folded to their stem first ("that's" -> "that", "there's" -> "there") or
+    they survive the stop list as four-letter "content" and quietly pad the union, which drags
+    the similarity of two near-identical clips down under the threshold."""
+    out = set()
+    for t in re.findall(r"[a-z']+", (text or "").lower()):
+        t = re.sub(r"'(s|re|ve|ll|d|m|t)$", "", t).replace("'", "")
+        if len(t) > 3 and t not in STOP:
+            out.add(t)
+    return out
+
+
+def similarity(a: str, b: str) -> float:
+    """Jaccard over content words. 0 = unrelated, 1 = the same thing said twice."""
+    A, B = _content(a), _content(b)
+    if not A or not B:
+        return 0.0
+    return len(A & B) / len(A | B)
+
+
+def _topic_key(m: dict) -> str:
+    t = re.sub(r"[^a-z ]", "", str(m.get("topic", "")).lower()).strip()
+    return "" if t in ("", "general", "none") else t
+
+
+def _clip_text(m: dict) -> str:
+    return m.get("text") or m.get("title") or m.get("description") or ""
+
+
 def dedupe(ms: list[dict], n: int) -> list[dict]:
+    """Keep the best n, and make sure they are not THE SAME CLIP THREE TIMES.
+
+    This used to compare start/end only, so two moments twenty minutes apart could never look
+    like duplicates however identical they were. On a podcast that circles one subject all
+    episode that is exactly the failure mode: the highest-scoring moments are all the same
+    idea, none of them overlap in time, and the picker happily ships three of them. (Reported
+    on EP.304 — three clips, topics 'faith / theory / theory', hook cards reading "You know why
+    that's a trend?", "You never heard that theory?", "Theory: you know, like they have to show
+    you what they're doing". Different timestamps, one clip.)
+
+    So a candidate is now dropped when it repeats an already-kept clip in TIME, in TOPIC, or in
+    WORDS. Variety is a preference, not a quota: if the rules cannot fill n clips the passes
+    below relax one rule at a time rather than hand back four clips when five were asked for.
+    """
+    max_sim = float(cfg.get("moments.max_similarity", 0.45))
+    per_topic = int(cfg.get("moments.max_per_topic", 1))
     ms = sorted(ms, key=lambda m: -m["score"])
+
+    def is_dupe(m: dict, k: dict) -> bool:
+        """The same clip, by any of the three ways two clips can be the same."""
+        if overlap(m, k) > 0.25:
+            return True
+        sim = similarity(_clip_text(m), _clip_text(k))
+        if sim > max_sim:
+            return True
+        # the same subject AND much of the same wording: the topic label is a strong hint, so it
+        # takes less word overlap to call it a repeat
+        tm, tk = _topic_key(m), _topic_key(k)
+        return bool(tm) and tm == tk and sim > max_sim * 0.6
+
     keep: list[dict] = []
-    for m in ms:
-        if any(overlap(m, k) > 0.25 for k in keep):
-            continue
-        keep.append(m)
+    topics: dict[str, int] = {}
+    # Two passes. The first also caps how many clips may share a topic — that cap is a
+    # PREFERENCE for variety and gets dropped in the second pass so that asking for five clips
+    # still returns five. `is_dupe` is NOT a preference and never relaxes: padding the list with
+    # a clip we already have is the bug being fixed, not an acceptable fallback.
+    for cap_topics in (True, False):
+        for m in ms:
+            if len(keep) >= n:
+                break
+            if any(m is k for k in keep):
+                continue
+            if any(is_dupe(m, k) for k in keep):
+                continue
+            t = _topic_key(m)
+            if cap_topics and t and topics.get(t, 0) >= per_topic:
+                continue
+            keep.append(m)
+            if t:
+                topics[t] = topics.get(t, 0) + 1
         if len(keep) >= n:
             break
     return keep
@@ -238,7 +365,12 @@ def heuristic_pick(tr: dict, n: int, lo: float, hi: float, keywords: list[str]) 
                     break
                 first = re.findall(r"[a-zA-Z']+", segs[i]["text"].lower())[:6]
                 kw_hits = sum(1 for t in toks if t in kws)
-                kw_rate = kw_hits / max(dur, 1) * 30
+                # THE BREVITY BIAS (fixed 2026-09-18). This divided by the real duration, so the
+                # SHORTER a window was the higher its keyword density scored — two hits in 15
+                # seconds beat four hits in 45. Combined with a floor of 15s that is a machine for
+                # producing clips that stop before the point does. The floor of 20 means a window
+                # cannot earn density points simply by being too short to say anything.
+                kw_rate = kw_hits / max(dur, 20.0) * 30
                 hook = sum(1 for t in first if t in HOOK_WORDS)
                 emo = sum(1 for t in toks if t in EMOTION) / max(dur, 1) * 30
                 qmark = segs[i]["text"].count("?")
@@ -246,8 +378,10 @@ def heuristic_pick(tr: dict, n: int, lo: float, hi: float, keywords: list[str]) 
                 density = len(toks) / max(dur, 1)
                 score = 40 + 10 * min(kw_rate, 4) + 8 * min(hook, 3) + 4 * min(emo, 3) + 6 * min(qmark, 1) - 15 * weak
                 score += 5 if 2.0 <= density <= 3.5 else 0
-                score -= 6 if not SENT_END.search(segs[j]["text"]) else 0
-                score -= abs(dur - sweet) / 6
+                # Ending mid-sentence is the single worst thing a clip can do, and it was priced
+                # at six points — less than one keyword hit. It is the complaint.
+                score -= 20 if not SENT_END.search(segs[j]["text"]) else 0
+                score -= abs(dur - sweet) / 4
                 cands.append({
                     "start": segs[i]["s"], "end": segs[j]["e"], "score": int(max(1, min(99, round(score)))),
                     "reasons": {

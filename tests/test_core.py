@@ -49,6 +49,74 @@ def test_dedupe_removes_overlaps():
     assert [m["score"] for m in keep] == [90, 70]
 
 
+def test_dedupe_drops_the_same_clip_told_twice():
+    """EP.304 shipped three clips twenty minutes apart that were all the same point.
+
+    They never overlapped in TIME, which was the only thing dedupe compared, so all three
+    sailed through. The same topic, or near-identical words, is the same clip however far
+    apart it was said."""
+    ms = [
+        {"start": 466, "end": 502, "score": 99, "topic": "theory",
+         "text": "you know why that's a trend that's actually AI trying to show you the theory"},
+        {"start": 1732, "end": 1748, "score": 98, "topic": "theory",
+         "text": "you never heard that theory so there's a theory AI is trying to show you"},
+        {"start": 2264, "end": 2282, "score": 97, "topic": "pyramids",
+         "text": "the pyramids were built with sound and nobody can explain the acoustics"},
+    ]
+    keep = moments.dedupe(ms, 3)
+    assert len(keep) == 2, [k["topic"] for k in keep]
+    assert {k["topic"] for k in keep} == {"theory", "pyramids"}
+    assert keep[0]["score"] == 99   # of the two duplicates, the better one survives
+
+
+def test_dedupe_still_fills_the_slots_when_everything_is_one_topic():
+    """The topic cap is a PREFERENCE for variety, not a quota. Four clips labelled 'theory' that
+    genuinely say different things still fill three slots — only actual repeats are dropped."""
+    texts = ["pyramids acoustics granite chamber resonance egypt",
+             "antarctica maps piri reis coastline ice sheet",
+             "roswell weather balloon foil memory metal",
+             "dogon tribe sirius companion star astronomy"]
+    ms = [{"start": i * 100, "end": i * 100 + 30, "score": 90 - i, "topic": "theory", "text": t}
+          for i, t in enumerate(texts)]
+    assert len(moments.dedupe(ms, 3)) == 3
+
+
+def test_snap_never_ends_mid_sentence():
+    """The old trim walked the end back one WORD at a time when no sentence boundary fit — which
+    is precisely how a clip ends on the setup with the payoff cut off."""
+    w = words_from("This is the opening hook that pulls you in. " + "filler words to burn the clock here " * 6 +
+                   "And that is the payoff line.")
+    m = {"start": 0.0, "end": w[9]["e"], "score": 80}   # an end landing mid-sentence
+    s = moments.snap(m, w, 2, 30)
+    assert s is not None
+    assert w[s["wj"]]["w"].endswith(".") or s["wj"] == len(w) - 1
+
+
+def test_heuristic_prefers_the_complete_thought_over_the_dense_fragment():
+    """The keyword score divided by duration, so a short window beat a long one on density alone.
+    With the channel keyword said in both, the version that finishes the point must win."""
+    short_dense = "Theory theory theory right there. "
+    full_thought = ("Here is the theory nobody will say out loud. " +
+                    "They test it quietly for years before anyone notices what changed. " +
+                    "And that is exactly why the timing lines up.  ")
+    w = words_from(short_dense + full_thought, step=0.4)
+    tr = {"words": w, "segments": transcribe.make_segments(w)}
+    picked = moments.heuristic_pick(tr, 1, 8, 40, ["theory"])
+    assert picked, "nothing picked"
+    # whatever it picks must end on a finished sentence, not trail off mid-thought
+    assert picked[0]["end"] > 4.0, picked[0]
+
+
+def test_snap_runs_over_to_land_the_payoff():
+    """A clip may exceed max by the grace window when that is what reaches the sentence end."""
+    w = words_from("Here is the question everyone asks. " + "and the long winded setup continues on and on " * 3 +
+                   "so the answer is yes.")
+    m = {"start": 0.0, "end": 9.0, "score": 80}
+    s = moments.snap(m, w, 5, 10)          # max 10s, but the sentence ends later
+    assert s is not None
+    assert w[s["wj"]]["w"].endswith(".")   # landed clean rather than cutting at 10s
+
+
 def test_heuristic_pick_returns_non_overlapping():
     text = ("Did you know the pyramids hide a secret? Nobody talks about this ancient theory. " * 3 +
             "And then we went to lunch and it was fine and nothing happened at all. " * 3 +
