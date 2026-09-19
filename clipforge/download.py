@@ -20,7 +20,7 @@ def is_url(s: str) -> bool:
     return bool(re.match(r"^https?://", s.strip(), re.I))
 
 
-BLOCK_HINTS = ("sign in to confirm", "not a bot", "403", "forbidden", "unable to download", "login required",
+BLOCK_HINTS = ("sign in to confirm", "page needs to be reloaded", "not a bot", "403", "forbidden", "unable to download", "login required",
                "private video", "this video is unavailable", "blocked", "captcha", "429", "too many requests",
                "requested format is not available", "unable to extract")
 
@@ -88,14 +88,31 @@ def download(url: str, progress=None) -> dict:
         if shutil.which(rt):
             opts["js_runtimes"] = {rt: {}}
             break
+    # proof-of-origin tokens from the bgutil helper (POT_PROVIDER_URL=http://host:4416) let server IPs through
+    xargs = {}
+    pot = env("POT_PROVIDER_URL")
+    if pot:
+        xargs["youtubepot-bgutilhttp"] = {"base_url": [pot.rstrip("/")]}
+    if xargs:
+        opts["extractor_args"] = dict(xargs)
 
     # Cached?
-    try:
-        with yt_dlp.YoutubeDL({"quiet": True, "no_warnings": True, "skip_download": True, "noplaylist": True,
-                               **({"cookiefile": ck} if ck else {})}) as ydl:
-            info = ydl.extract_info(url, download=False)
-    except Exception as e:  # noqa: BLE001
-        raise _classify(e)
+    info = None
+    probe_err = None
+    for client in (None, ["tv"], ["mweb"]):
+        po = {"quiet": True, "no_warnings": True, "skip_download": True, "noplaylist": True, **({"cookiefile": ck} if ck else {})}
+        if xargs or client:
+            po["extractor_args"] = {**xargs, **({"youtube": {"player_client": client}} if client else {})}
+        if "js_runtimes" in opts:
+            po["js_runtimes"] = opts["js_runtimes"]
+        try:
+            with yt_dlp.YoutubeDL(po) as ydl:
+                info = ydl.extract_info(url, download=False)
+            break
+        except Exception as e:  # noqa: BLE001
+            probe_err = e
+    if info is None:
+        raise _classify(probe_err)
     vid = info.get("id") or re.sub(r"\W+", "_", url)[-40:]
     cached = DL_DIR / f"{vid}.mp4"
     meta_path = DL_DIR / f"{vid}.meta.json"
@@ -110,15 +127,23 @@ def download(url: str, progress=None) -> dict:
         return meta
 
     last = None
-    for attempt in range(int(cfg.get("download.retries", 3))):
+    # each attempt tries a different YouTube player client; the challenge usually hits only some of them
+    clients = [None, ["tv"], ["mweb"], ["web_safari"], ["android_vr"]]
+    for attempt, client in enumerate(clients[:max(2, int(cfg.get("download.retries", 3)) + 2)]):
+        o = dict(opts)
+        if client:
+            o["extractor_args"] = {**xargs, "youtube": {"player_client": client}}
+            if client == ["android_vr"]:
+                o.pop("cookiefile", None)  # this client refuses cookies
         try:
-            with yt_dlp.YoutubeDL(opts) as ydl:
+            with yt_dlp.YoutubeDL(o) as ydl:
                 ydl.download([url])
+            last = None
             break
         except Exception as e:  # noqa: BLE001
             last = e
-            time.sleep(2 * (attempt + 1))
-    else:
+            time.sleep(1.5 * (attempt + 1))
+    if last is not None:
         raise _classify(last)
 
     files = sorted(DL_DIR.glob(f"{vid}.*"), key=lambda p: p.stat().st_size, reverse=True)

@@ -13,6 +13,7 @@ services:
     environment:
       - CLIPFORGE_DATA_DIR=/data
       - APP_HTTPS=1
+      - POT_PROVIDER_URL=http://bgutil:4416
     volumes:
       - clipforge_data:/data
     expose:
@@ -22,6 +23,13 @@ services:
     #   resources:
     #     reservations:
     #       devices: [{driver: nvidia, count: 1, capabilities: [gpu]}]
+
+  # Proof-of-origin token helper for YouTube downloads from server IPs (recommended by yt-dlp)
+  bgutil:
+    image: brainicism/bgutil-ytdlp-pot-provider:latest
+    restart: unless-stopped
+    expose:
+      - "4416"
 
   caddy:
     image: caddy:2-alpine

@@ -7,6 +7,8 @@ pyyaml>=6.0
 python-dotenv>=1.0
 anthropic>=1.0
 yt-dlp>=2025.1.1
+# proof-of-origin tokens for YouTube on server IPs (needs the bgutil helper service, see DEPLOY.md)
+bgutil-ytdlp-pot-provider>=1.1
 faster-whisper>=1.1
 sherpa-onnx>=1.12
 scenedetect>=0.6.4

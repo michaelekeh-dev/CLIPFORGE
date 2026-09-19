@@ -35,7 +35,13 @@ Same app, no server to manage. About $10 to $15 a month depending on how much yo
    - Mac/Linux terminal: `base64 -w0 youtube.com_cookies.txt | pbcopy` (Linux: `| xclip -selection clipboard`)
    - Windows PowerShell: `[Convert]::ToBase64String([IO.File]::ReadAllBytes("$HOME\Downloads\youtube.com_cookies.txt")) | Set-Clipboard`
    Then Variables → New Variable → name `YTDLP_COOKIES_B64`, paste the value. The app decodes it into a file by itself.
-6. Updates: every `git push` redeploys. Logs are in the **Deployments** tab. Restarts on crash are on by default.
+6. **YouTube from a server IP** (needed if links fail with "not a bot" or "page needs to be reloaded" even with cookies):
+   add a second service in the same Railway project that hands yt-dlp proof-of-origin tokens.
+   - Project canvas → **+ New** → **Docker Image** → image `brainicism/bgutil-ytdlp-pot-provider:latest` → deploy.
+   - Open that new service → **Settings** → rename it `bgutil` (its private host becomes `bgutil.railway.internal`).
+   - Back in the CLIPFORGE service → Variables → add `POT_PROVIDER_URL` = `http://bgutil.railway.internal:4416` → deploy.
+   It costs a few cents a month; it only runs when a download asks it for a token.
+7. Updates: every `git push` redeploys. Logs are in the **Deployments** tab. Restarts on crash are on by default.
 
 Keep the service on the Hobby plan or higher (8 GB RAM); the speech model needs about 3 GB while transcribing.
 
