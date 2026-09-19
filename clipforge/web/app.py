@@ -86,7 +86,7 @@ async def auth_middleware(request: Request, call_next):
         url = f"{proto}://{host}"
         if db.get_setting("public_url") != url:
             db.set_setting("public_url", url)
-    if path.startswith("/static") or path in ("/login", "/health", "/manifest.webmanifest", "/sw.js") or logged_in(request):
+    if path.startswith("/static") or path in ("/login", "/health", "/manifest.webmanifest", "/sw.js", "/privacy", "/terms") or logged_in(request):
         return await call_next(request)
     if path.startswith("/api/"):
         return JSONResponse({"error": "Please log in"}, status_code=401)
@@ -449,6 +449,26 @@ def oauth_youtube_callback(code: str = "", state: str = "", error: str = ""):
 def api_youtube_disconnect():
     youtube.disconnect()
     return RedirectResponse("/autopilot?msg=YouTube disconnected", status_code=303)
+
+
+LEGAL = """<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>{title} · CLIPFORGE</title>
+<style>body{{margin:0;background:#0f1115;color:#f2f3f7;font:16px/1.6 -apple-system,Segoe UI,Roboto,sans-serif}}main{{max-width:720px;margin:0 auto;padding:32px 16px}}h1{{font-size:1.5rem}}a{{color:#f5a524}}</style></head>
+<body><main><p><a href="/">▶ CLIPFORGE</a></p><h1>{title}</h1>{body}</main></body></html>"""
+
+
+@app.get("/privacy", response_class=HTMLResponse)
+def privacy():
+    return LEGAL.format(title="Privacy policy", body="""
+<p>CLIPFORGE is a personal, self-hosted tool that cuts long videos into short clips and can upload them to the owner's own YouTube channel.</p>
+<p><b>What it stores:</b> the videos you give it, the clips it makes, transcripts, and (if you connect YouTube) an access token for your own channel. Everything stays on the server you run it on. Nothing is sold or shared with anyone.</p>
+<p><b>Google user data:</b> when you connect YouTube, the app asks for permission to upload videos to your channel and to read your channel name. It uses that only to post the clips you approve. You can remove access at any time at <a href="https://myaccount.google.com/permissions">myaccount.google.com/permissions</a> or with the Disconnect button in the app.</p>
+<p><b>Contact:</b> the person running this instance.</p>""")
+
+
+@app.get("/terms", response_class=HTMLResponse)
+def terms():
+    return LEGAL.format(title="Terms of service", body="""
+<p>CLIPFORGE is provided as is, for personal use by the person who runs it. You are responsible for having the rights to the videos you clip and post.</p>""")
 
 
 @app.get("/health")
