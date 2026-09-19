@@ -329,7 +329,7 @@ def status_info() -> dict:
         "projects": (db.row("SELECT COUNT(*) AS n FROM projects") or {}).get("n", 0),
         "clips": (db.row("SELECT COUNT(*) AS n FROM clips WHERE status='done'") or {}).get("n", 0),
         "device": device(), "cpus": os.cpu_count(), "transcriber": transcribe.choose_backend(),
-        "have": {"anthropic": bool(env("ANTHROPIC_API_KEY")), "cookies": bool(env("YTDLP_COOKIES")), "pexels": bool(env("PEXELS_API_KEY")),
+        "have": {"anthropic": bool(env("ANTHROPIC_API_KEY")), "cookies": bool(env("YTDLP_COOKIES") or env("YTDLP_COOKIES_B64")), "pexels": bool(env("PEXELS_API_KEY")),
                  "hf": bool(env("HF_TOKEN")), "password": bool(env("APP_PASSWORD"))},
         "delete_days": cfg.get("app.delete_sources_after_days", 7), "errors": errors,
     }

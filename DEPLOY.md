@@ -31,8 +31,10 @@ Same app, no server to manage. About $10 to $15 a month depending on how much yo
 2. In the service, open **Variables** and add: `APP_PASSWORD`, `ANTHROPIC_API_KEY`, `APP_HTTPS=1`, `CLIPFORGE_DATA_DIR=/data`, and optionally `PEXELS_API_KEY`, `HF_TOKEN`, `YTDLP_COOKIES=/data/cookies.txt`.
 3. Open **Settings** → **Volumes** → **Add volume**, mount path `/data`, size 20 GB or more (source videos are big; they are deleted after 7 days).
 4. **Settings** → **Networking** → **Generate domain**. Open it on your phone, log in, add to home screen.
-5. Cookies: in the service **Shell** tab (or `railway shell`), paste the cookies file content into `/data/cookies.txt`:
-   `cat > /data/cookies.txt` then paste, then Ctrl+D. Set `YTDLP_COOKIES=/data/cookies.txt` in Variables.
+5. Cookies: turn the exported `youtube.com_cookies.txt` into one line and paste it as the variable `YTDLP_COOKIES_B64`:
+   - Mac/Linux terminal: `base64 -w0 youtube.com_cookies.txt | pbcopy` (Linux: `| xclip -selection clipboard`)
+   - Windows PowerShell: `[Convert]::ToBase64String([IO.File]::ReadAllBytes("$HOME\Downloads\youtube.com_cookies.txt")) | Set-Clipboard`
+   Then Variables → New Variable → name `YTDLP_COOKIES_B64`, paste the value. The app decodes it into a file by itself.
 6. Updates: every `git push` redeploys. Logs are in the **Deployments** tab. Restarts on crash are on by default.
 
 Keep the service on the Hobby plan or higher (8 GB RAM); the speech model needs about 3 GB while transcribing.

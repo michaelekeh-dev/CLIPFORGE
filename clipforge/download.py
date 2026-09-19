@@ -26,6 +26,18 @@ BLOCK_HINTS = ("sign in to confirm", "not a bot", "403", "forbidden", "unable to
 
 
 def _cookie_file() -> str | None:
+    # YTDLP_COOKIES_B64: the cookies.txt file base64-encoded on one line (easiest on hosts like Railway)
+    b64 = env("YTDLP_COOKIES_B64")
+    if b64:
+        import base64
+        try:
+            text = base64.b64decode("".join(b64.split())).decode("utf-8", "ignore")
+            if "\t" in text or "# Netscape" in text:
+                target = CACHE / "cookies.txt"
+                target.write_text(text)
+                return str(target)
+        except Exception:
+            pass
     c = env("YTDLP_COOKIES")
     if not c:
         return None
