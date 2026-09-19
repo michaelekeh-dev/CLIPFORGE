@@ -24,13 +24,18 @@ def auth_url(redirect_uri: str) -> str:
     flow = Flow.from_client_config(_client_config(redirect_uri), scopes=SCOPES, redirect_uri=redirect_uri)
     url, state = flow.authorization_url(access_type="offline", prompt="consent", include_granted_scopes="true")
     db.set_setting("youtube_oauth_state", state)
+    # the login finishes in a second request, so the PKCE verifier has to survive in between
+    db.set_setting("youtube_oauth_verifier", getattr(flow, "code_verifier", None))
     return url
 
 
 def finish_auth(redirect_uri: str, code: str) -> dict:
     from google_auth_oauthlib.flow import Flow
-    flow = Flow.from_client_config(_client_config(redirect_uri), scopes=SCOPES, redirect_uri=redirect_uri)
+    verifier = db.get_setting("youtube_oauth_verifier")
+    flow = Flow.from_client_config(_client_config(redirect_uri), scopes=SCOPES, redirect_uri=redirect_uri,
+                                   code_verifier=verifier, autogenerate_code_verifier=not verifier)
     flow.fetch_token(code=code)
+    db.execute("DELETE FROM settings WHERE key IN ('youtube_oauth_verifier','youtube_oauth_state')")
     c = flow.credentials
     db.set_setting("youtube_credentials", {"token": c.token, "refresh_token": c.refresh_token, "token_uri": c.token_uri,
                                            "client_id": c.client_id, "client_secret": c.client_secret, "scopes": list(c.scopes or SCOPES)})
