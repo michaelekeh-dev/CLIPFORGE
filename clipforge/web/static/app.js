@@ -51,7 +51,11 @@ const CF = (() => {
       // Show the REASON, do not strip it. This read "picked by heuristic" whether the key was
       // missing or Claude had errored, so a whole episode could be picked by the keyword rule
       // and look like a deliberate setting. The parenthetical is the only thing that says why.
-      $('#pmeta').textContent = (p.duration ? Math.round(p.duration / 60) + ' min' : '') + (p.info && p.info.pick_method ? ' · picked by ' + p.info.pick_method.trim() : '');
+      const pm = ((p.info && p.info.pick_method) || '').trim();
+      $('#pmeta').textContent = (p.duration ? Math.round(p.duration / 60) + ' min' : '') + (pm ? ' · picked by ' + pm : '');
+      let warn = $('#pickWarn');
+      if (pm.startsWith('heuristic')) { if (!warn) { warn = document.createElement('div'); warn.id = 'pickWarn'; warn.className = 'notice'; $('#head').after(warn); } warn.innerHTML = '<b>Claude did not pick these clips.</b> ' + esc(pm) + '. Titles and hooks are made by a simple rule until this is fixed. Check the <a href="/status">Status</a> page for the Anthropic key and recent errors.'; }
+      else if (warn) warn.remove();
       const running = p.status === 'running' || p.status === 'queued';
       $('#progress').classList.toggle('hidden', !running);
       $('#errorBox').classList.toggle('hidden', p.status !== 'error');
@@ -63,7 +67,7 @@ const CF = (() => {
         $('#pstage').textContent = p.stage || 'Working…';
       }
       $('#clipsTitle').textContent = p.clips.length ? `Clips (${p.clips.length})` : (running ? 'Clips will appear here' : 'Clips');
-      const key = JSON.stringify(p.clips.map(c => [c.id, c.status, c.progress, c.title]));
+      const key = JSON.stringify(p.clips.map(c => [c.id, c.status, c.progress, c.title, c.post && c.post.status]));
       if (key !== last) { last = key; clipsEl.innerHTML = p.clips.map(clipCard).join(''); bind(p); }
       else p.clips.forEach(c => { const b = $(`[data-clip="${c.id}"] .cbar > div`); if (b) b.style.width = c.progress + '%'; });
     };
@@ -98,12 +102,24 @@ const CF = (() => {
             <button class="btn secondary small copy">Copy title + tags</button>
             ${c.thumbnail_url ? `<a class="btn secondary small" href="${c.thumbnail_url}" title="Thumbnail">🖼</a>` : ''}
           </div>
+          <div class="post-row small">${postState(c)}</div>
         </div>
       </article>`;
+    const postState = (c) => {
+      const p = c.post || {};
+      if (p.status === 'waiting') return `🕒 Posts ${esc(p.when)} <button class="btn secondary small post-cancel">Cancel</button>`;
+      if (p.status === 'scheduled' || p.status === 'uploaded' || p.status === 'published') return `✅ On YouTube: <a href="https://youtu.be/${esc(p.youtube_id)}" target="_blank">youtu.be/${esc(p.youtube_id)}</a>`;
+      if (p.status === 'uploading') return '📤 Uploading…';
+      if (p.status === 'error') return `❌ ${esc(p.error)} <button class="btn secondary small post-queue">Try again</button>`;
+      if (p.status === 'skipped') return `⏭ Skipped <button class="btn secondary small post-queue">Post anyway</button>`;
+      return c.status === 'done' ? `<button class="btn secondary small post-queue">📤 Post to YouTube</button>` : '';
+    };
     const styleOptions = (cur) => ['<option value="auto">Auto style</option>'].concat((window.CF_PRESETS || []).map(p => `<option value="${p.id}" ${p.id === cur ? 'selected' : ''}>${esc(p.label)}</option>`)).join('');
     const bind = (p) => {
       p.clips.forEach(c => {
         const el = $(`[data-clip="${c.id}"]`); if (!el) return;
+        const pq = $('.post-queue', el); if (pq) pq.onclick = async () => { const r = await api(`/api/posts/${c.id}/queue`, { method: 'POST' }); toast(r.ok ? 'Queued for ' + (r.post && r.post.publish_at ? new Date(r.post.publish_at * 1000).toLocaleString() : 'the next slot') : 'Could not queue (connect YouTube on the Autopilot page)'); poll(); };
+        const pc = $('.post-cancel', el); if (pc) pc.onclick = async () => { await api(`/api/posts/${c.id}/cancel`, { method: 'POST' }); toast('Cancelled'); poll(); };
         const rr2 = $('.rerender-btn', el); if (rr2) rr2.onclick = async () => {
           rr2.disabled = true;
           await api(`/api/clips/${c.id}/settings`, { method: 'POST', headers: { 'Content-Type': 'application/json' },

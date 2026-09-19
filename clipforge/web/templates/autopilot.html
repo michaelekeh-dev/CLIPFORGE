@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}Autopilot · CLIPFORGE{% endblock %}
+{% block nav %}<a class="muted" href="/">All projects</a>{% endblock %}
+{% block content %}
+<h1>Autopilot</h1>
+<p class="muted">Watches a channel, makes the clips by itself, sends them to Telegram, posts them to YouTube on a schedule.</p>
+{% if msg %}<div class="notice">{{ msg }}</div>{% endif %}
+
+<section class="card">
+  <h3>Connections</h3>
+  <ul class="plain">
+    <li>{{ '🟢' if tg.enabled and tg.chat else ('🟡' if tg.enabled else '🔴') }} <b>Telegram</b>:
+      {% if not tg.enabled %}add <code>TELEGRAM_BOT_TOKEN</code> (see DEPLOY.md){% elif not tg.chat %}bot token set, now open your bot in Telegram and send <code>/start</code>{% else %}linked
+      <form method="post" action="/api/autopilot/test-telegram" style="display:inline"><button class="btn secondary small">Send a test message</button></form>{% endif %}</li>
+    <li>{{ '🟢' if yt.connected else ('🟡' if yt.configured else '🔴') }} <b>YouTube</b>:
+      {% if yt.connected %}connected to <b>{{ yt.channel.title }}</b> {{ yt.channel.handle }}
+      <form method="post" action="/api/youtube/disconnect" style="display:inline"><button class="btn danger small">Disconnect</button></form>
+      {% elif yt.configured %}<a class="btn primary small" href="/oauth/youtube/start">Connect my channel</a>
+      {% else %}add <code>YOUTUBE_CLIENT_ID</code> and <code>YOUTUBE_CLIENT_SECRET</code> (DEPLOY.md, section YouTube posting){% endif %}</li>
+    <li class="muted small">This app's address: {{ public_url }} (used for links in Telegram and for the YouTube login)</li>
+  </ul>
+</section>
+
+<section class="card">
+  <form method="post" action="/api/autopilot">
+    <div class="grid ap-grid">
+      <label class="check span2"><input type="checkbox" name="enabled" {% if st.enabled %}checked{% endif %}> Autopilot on (check the channel and clip new episodes by itself)</label>
+      <label class="span2">Channel to watch<input class="input" name="channel_url" value="{{ st.channel_url }}" placeholder="https://www.youtube.com/@JumpersJump"></label>
+      <label>Check every (minutes)<input class="input" type="number" name="check_minutes" value="{{ st.check_minutes }}" min="10"></label>
+      <label>Clips per episode<input class="input" type="number" name="clips" value="{{ st.clips }}" min="1" max="10"></label>
+      <label>Clip length<select class="input" name="length">{% for l in ['auto','short','medium','long'] %}<option value="{{ l }}" {% if st.length == l %}selected{% endif %}>{{ l|capitalize }}</option>{% endfor %}</select></label>
+      <label>Posting<select class="input" name="mode"><option value="ask" {% if st.mode == 'ask' %}selected{% endif %}>Ask me on Telegram for every clip</option><option value="auto" {% if st.mode == 'auto' %}selected{% endif %}>Post 🟢 clips by itself, ask for 🟡, skip 🔴</option></select></label>
+      <label class="span2">Topic keywords<input class="input" name="keywords" value="{{ st.keywords|join(', ') }}"></label>
+      <label>Post times (comma separated, 24h)<input class="input" name="post_times" value="{{ st.post_times|join(', ') }}"></label>
+      <label>Time zone<input class="input" name="timezone" value="{{ st.timezone }}"></label>
+      <label>Max posts per day<input class="input" type="number" name="max_posts_per_day" value="{{ st.max_posts_per_day }}" min="1" max="10"></label>
+      <label class="check"><input type="checkbox" name="public" {% if st.public %}checked{% endif %}> Publish publicly (off = upload as private)</label>
+      <label class="span2">Description footer (placeholders: {source_url}, {credit})<textarea class="input" name="description_footer" rows="3">{{ st.description_footer }}</textarea></label>
+    </div>
+    <div class="row" style="margin-top:12px"><button class="btn primary" type="submit">Save</button>
+      <button class="btn secondary" type="submit" formaction="/api/autopilot/check">Check the channel now</button></div>
+  </form>
+</section>
+
+<section class="card">
+  <h3>Posting queue</h3>
+  {% if posts %}<ul class="plain small">{% for p in posts %}<li>{{ {'waiting':'🕒','uploading':'📤','scheduled':'✅','uploaded':'✅','published':'✅','skipped':'⏭','cancelled':'🚫','error':'❌'}.get(p.status, '·') }} {{ p.when }} · {{ p.clip_title or p.title }}{% if p.youtube_id %} · <a href="https://youtu.be/{{ p.youtube_id }}" target="_blank">youtu.be/{{ p.youtube_id }}</a>{% endif %}{% if p.error %} · <span class="muted">{{ p.error[:120] }}</span>{% endif %}</li>{% endfor %}</ul>
+  {% else %}<p class="muted">Nothing yet. Finished clips get a "Post to YouTube" button, and Telegram gets Post / Skip buttons.</p>{% endif %}
+</section>
+
+<section class="card">
+  <h3>Episodes seen</h3>
+  {% if seen %}<ul class="plain small">{% for v in seen %}<li>{{ v.title }}{% if v.project_id %} · <a href="/project/{{ v.project_id }}">clips</a>{% else %} · <span class="muted">skipped</span>{% endif %}</li>{% endfor %}</ul>{% else %}<p class="muted">The first check takes only the newest episode; older ones are marked as seen.</p>{% endif %}
+</section>
+{% endblock %}

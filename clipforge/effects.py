@@ -14,16 +14,21 @@ Z = cfg.get("zooms")
 
 
 # ----------------------------------------------------------------------------- hook
-def hook_text_from(title: str, text: str, max_words: int | None = None) -> str:
-    """Heuristic hook: the honest title trimmed to 6-8 words."""
-    max_words = max_words or int(H.get("max_words", 8))
-    t = re.sub(r"\s+", " ", title or "").strip().rstrip(".")
-    words = t.split()
-    if len(words) > max_words:
-        t = " ".join(words[:max_words]).rstrip(",;:") + "..."
-    if len(words) < 3 and text:
-        t = " ".join(text.split()[:max_words])
-    return t
+def hook_text_from(title: str, text: str, max_words: int | None = None, fact_type: str = "") -> str:
+    """Fallback hook without Claude: a curiosity teaser built around the subject, never the opening words."""
+    from .moments import subject_words
+    low = (text or "").lower()
+    subj = subject_words(text or "", None, 1)
+    a = subj[0] if subj else ""
+    if fact_type == "faith" or any(k in low for k in ("bible", "jesus", "god ", "scripture")):
+        return f"the Bible story about {a} they skip..." if a else "they never taught you this in church..."
+    if fact_type == "theory" or any(k in low for k in ("theory", "aliens", "secret", "hidden")):
+        return f"this {a} theory changes everything..." if a else "this theory changes everything..."
+    if any(k in low for k in ("dark", "died", "death", "killed", "creepy", "scary")):
+        return "no way it gets this dark..."
+    if "?" in (text or ""):
+        return f"did you know this about {a}?" if a else "did you know this??"
+    return f"nobody talks about {a}..." if a else "wait for the ending..."
 
 
 def hook_ass(text: str, out_w: int, out_h: int, seconds: float, style: dict | None = None, offset: float = 0.0) -> tuple[str, list[str]]:

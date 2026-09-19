@@ -133,3 +133,6 @@ ul.plain { list-style: none; padding: 0; margin: 0; display: flex; flex-directio
 .top nav { flex-wrap: wrap; justify-content: flex-end; }
 @media (display-mode: standalone) { .splash { display: grid; } }
 @media (max-width: 480px) { .top nav { font-size: .8rem; gap: 10px; } }
+.post-row { color: var(--muted); display: flex; gap: 8px; align-items: center; flex-wrap: wrap; min-height: 20px; }
+.ap-grid label { display: flex; flex-direction: column; gap: 6px; font-size: .85rem; color: var(--muted); }
+.pill.on { color: var(--ok); } .pill.off { color: var(--muted); }

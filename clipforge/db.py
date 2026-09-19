@@ -66,6 +66,19 @@ CREATE TABLE IF NOT EXISTS templates (
   created_at REAL, updated_at REAL
 );
 CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT);
+CREATE TABLE IF NOT EXISTS posts (
+  id TEXT PRIMARY KEY,
+  clip_id TEXT,
+  project_id TEXT,
+  status TEXT DEFAULT 'waiting',
+  publish_at REAL,
+  youtube_id TEXT DEFAULT '',
+  title TEXT DEFAULT '',
+  error TEXT DEFAULT '',
+  telegram_msg TEXT DEFAULT '',
+  created_at REAL, updated_at REAL
+);
+CREATE TABLE IF NOT EXISTS seen_videos (video_id TEXT PRIMARY KEY, title TEXT, seen_at REAL, project_id TEXT);
 CREATE TABLE IF NOT EXISTS errors (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   at REAL, where_ TEXT, message TEXT
@@ -137,7 +150,7 @@ def insert(table: str, values: dict):
     values = dict(values)
     now = time.time()
     values.setdefault("created_at", now)
-    if table in ("projects", "clips", "templates"):
+    if table in ("projects", "clips", "templates", "posts"):
         values.setdefault("updated_at", now)
     cols = ", ".join(f'"{k}"' for k in values)
     qs = ", ".join("?" for _ in values)
@@ -146,7 +159,7 @@ def insert(table: str, values: dict):
 
 def update(table: str, id_: str, values: dict):
     values = dict(values)
-    if table in ("projects", "clips", "templates"):
+    if table in ("projects", "clips", "templates", "posts"):
         values["updated_at"] = time.time()
     sets = ", ".join(f'"{k}" = ?' for k in values)
     execute(f"UPDATE {table} SET {sets} WHERE id = ?", tuple(_enc(v) for v in values.values()) + (id_,))
@@ -178,3 +191,17 @@ def log_error(where: str, message: str):
         execute("DELETE FROM errors WHERE id NOT IN (SELECT id FROM errors ORDER BY id DESC LIMIT 200)")
     except Exception:
         pass
+
+
+def get_setting(key: str, default=None):
+    r = row("SELECT value FROM settings WHERE key=?", (key,))
+    if not r:
+        return default
+    try:
+        return json.loads(r["value"])
+    except (TypeError, json.JSONDecodeError):
+        return r["value"]
+
+
+def set_setting(key: str, value):
+    execute("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)", (key, json.dumps(value)))

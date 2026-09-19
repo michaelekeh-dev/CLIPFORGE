@@ -39,7 +39,9 @@ def check_clip(text: str, title: str) -> dict:
                   "well-supported / disputed / false / unverifiable with a short note; scripture: verses quoted or "
                   "referenced with in_context true/false and a note; red_flags: short strings; honest_title: catchy but "
                   "honest, max 70 characters, framing theories as theories; verdict: ok / needs context / skip; "
-                  "summary: one sentence a busy person can read.")
+                  "summary: one sentence a busy person can read. For honest_title keep the proposed title's style (a Shorts title "
+                  "about the subject, e.g. 'Uncovered: the Bible story about X' or 'X said WHAT about Y?'), fix it only if it "
+                  "is misleading; never replace it with the clip's opening words.")
         try:
             out = llm.ask_json(prompt, system=SYSTEM, model=cfg.get("llm.check_model"), schema=SCHEMA, max_tokens=2000)
             out["checked_by"] = cfg.get("llm.check_model")

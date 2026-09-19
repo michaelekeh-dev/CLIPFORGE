@@ -108,8 +108,17 @@ def run_project(pid: str, progress) -> None:
         base = 60 + 40 * (i - 1) / len(clip_ids)
         span = 40 / len(clip_ids)
         progress(f"Rendering clip {i} of {len(clip_ids)}", base)
-        render_one(cid, lambda stage, pct=None, status=None: progress(f"Rendering clip {i} of {len(clip_ids)}", base + span * (pct or 0) / 100))
+        try:
+            render_one(cid, lambda stage, pct=None, status=None: progress(f"Rendering clip {i} of {len(clip_ids)}", base + span * (pct or 0) / 100))
+        except Exception as e:  # noqa: BLE001
+            db.log_error(f"clip:{cid}", str(e))  # one bad clip must not sink the episode
     progress("Done", 100)
+    db.update("projects", pid, {"status": "done", "progress": 100})
+    try:
+        from . import autopilot
+        autopilot.on_project_done(pid)
+    except Exception as e:  # noqa: BLE001
+        db.log_error("autopilot", str(e))
 
 
 def render_one(cid: str, progress=None) -> dict:
@@ -173,7 +182,8 @@ def render_one(cid: str, progress=None) -> dict:
         if tdata.get("outro_card") and settings.get("outro_card", True):
             tl.lead_out = float(_cfg.get("cards.outro_seconds", 1.6))
         hook_on = settings.get("hook", bool(_cfg.get("hook.enabled", True)))
-        hook_text = (settings.get("hook_text") or data.get("hook") or effects.hook_text_from(clip["title"], data.get("text", ""))).strip()
+        hook_text = (settings.get("hook_text") or data.get("hook")
+                     or effects.hook_text_from(clip["title"], data.get("text", ""), fact_type=(data.get("fact_check") or {}).get("type", ""))).strip()
         extra = None
         if hook_on and hook_text:
             hook_secs = float(_cfg.get("hook.seconds", 0)) or tl.speech_duration

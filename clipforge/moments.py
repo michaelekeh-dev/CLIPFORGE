@@ -49,6 +49,11 @@ MOMENT_SCHEMA = {
     "additionalProperties": False,
 }
 
+TITLE_STYLE = ("Title style (this matters a lot): a YouTube Shorts title that makes people tap, built from the CONTENT of the clip, "
+               "never its opening words. Patterns that work: 'Uncovered: the Bible story about X', 'X said WHAT about Y?', "
+               "'The truth about X nobody talks about', 'Why X actually happened', 'X explains Y in 30 seconds'. "
+               "Name the subject (person, place, book, event). Max 70 characters, no quotes, honest, theories framed as theories.")
+
 SYSTEM = """You are a senior short-form video editor. You pick the moments from a long talking video that would work
 best as standalone vertical Shorts for a channel about theories, history and Christian faith content.
 
@@ -122,7 +127,7 @@ def pick_moments(tr: dict, n: int, length: str, keywords: list[str], progress=No
                       "For each moment give: start and end in seconds (use the [timestamps]; end = the moment the LAST "
                       "SENTENCE YOU KEEP finishes — the one carrying the payoff, not the one before it), score 0-100 for "
                       "virality, one short sentence for each reason (hook, payoff, emotion, standalone, topic_match), "
-                      "topic (3 words max), an honest catchy title (max 70 characters), a 1-2 sentence description, "
+                      "topic (3 words max), title (" + TITLE_STYLE + "), a 1-2 sentence description that says what the clip is about, "
                       "5-8 hashtags, key_words: 1-3 words spoken in the clip worth highlighting in the captions, and emojis: "
                       "up to 3 pairs of a spoken word plus one fitting emoji (spread out, none is fine), "
                       "hook: a short curiosity teaser (3-9 words) shown on a card for the first 3 seconds. It must fit THIS "
@@ -392,7 +397,7 @@ def heuristic_pick(tr: dict, n: int, lo: float, hi: float, keywords: list[str]) 
                         "topic_match": f"{kw_hits} topic keywords" if kw_hits else "No topic keywords",
                     },
                     "topic": ", ".join(sorted({t for t in toks if t in kws})[:3]) or "general",
-                    "title": _title_from(segs[i]["text"]),
+                    "title": _title_from(text, keywords),
                     "description": text[:160].rsplit(" ", 1)[0] + ("..." if len(text) > 160 else ""),
                     "hashtags": ["#shorts"] + [f"#{k.lower().replace(' ', '')}" for k in keywords[:4]],
                     "key_words": [t for t in toks if t in kws][:3] or [t for t in toks if len(t) > 6][:2],
@@ -409,8 +414,59 @@ def heuristic_pick(tr: dict, n: int, lo: float, hi: float, keywords: list[str]) 
     return out
 
 
-def _title_from(text: str, limit: int = 60) -> str:
-    t = re.sub(r"\s+", " ", text).strip().rstrip(".")
-    if len(t) > limit:
-        t = t[:limit].rsplit(" ", 1)[0] + "..."
-    return t[:1].upper() + t[1:]
+STOP = set("""a an the and or but so if of to in on at for with from by about into over after before this that these those it its
+is are was were be been being do does did have has had i you he she we they me him her us them my your his our their what which who
+whom whose when where why how not no yes just like really very kind sort thing things gonna wanna got get go going yeah um uh okay
+know think mean say said says one two there here then than too also because as up down out off again more most some any all
+""".split())
+
+
+def subject_words(text: str, keywords: list[str] | None = None, n: int = 2) -> list[str]:
+    """The words a clip is about: capitalised names first, then topic keywords, then the most repeated long words."""
+    toks = re.findall(r"[A-Za-z][A-Za-z']+", text)
+    generic = {"bible", "god", "jesus", "christ", "lord", "christian", "christians", "church", "youtube", "tiktok", "instagram"}
+    # capitalised words that are not sentence starts and not generic religious words: real names/places first
+    starts = {m.group(1).lower() for m in re.finditer(r"(?:^|[.!?]\s+)([A-Za-z']+)", text)}
+    names = [t for t in toks if t[0].isupper() and t.lower() not in STOP and t.lower() not in generic and t.lower() not in starts and len(t) > 2]
+    names += [t for t in toks if t.lower() in generic and t.lower() not in starts]
+    # most repeated name first (the clip is about what keeps coming up), ties by first appearance
+    seen_n: dict[str, int] = {}
+    for t in names:
+        seen_n[t] = seen_n.get(t, 0) + 1
+    names = sorted(dict.fromkeys(names), key=lambda t: (-seen_n[t], names.index(t)))
+    kws = [k for k in (keywords or []) if re.search(r"\b" + re.escape(k) + r"\b", text, re.I)]
+    freq: dict[str, int] = {}
+    for t in toks:
+        tl = t.lower()
+        if len(tl) > 5 and tl not in STOP:
+            freq[tl] = freq.get(tl, 0) + 1
+    common = [w for w, _ in sorted(freq.items(), key=lambda x: -x[1])]
+    out: list[str] = []
+    for w in names + kws + common:
+        if w.lower() not in {o.lower() for o in out}:
+            out.append(w)
+        if len(out) >= n:
+            break
+    return out
+
+
+def _title_from(text: str, keywords: list[str] | None = None, limit: int = 70) -> str:
+    """Fallback title without Claude: built around the subject, never the opening words."""
+    subj = subject_words(text, keywords)
+    low = text.lower()
+    if not subj:
+        return "You need to hear this one"
+    a = subj[0]
+    a_cap = a if a[0].isupper() else a.capitalize()
+    said = re.search(r"\b" + re.escape(a) + r"\b\s+(?:\w+\s+){0,2}(said|says|told|claims|admitted)\b", text, re.I)
+    if said and len(subj) > 1:
+        t = f"{a_cap} said WHAT about {subj[1]}?"
+    elif any(k in low for k in ("bible", "jesus", "god", "scripture", "verse")):
+        t = f"Uncovered: the Bible story about {a}"
+    elif any(k in low for k in ("theory", "aliens", "secret", "hidden", "conspiracy")):
+        t = f"The theory about {a} nobody talks about"
+    elif len(subj) > 1:
+        t = f"The truth about {a} and {subj[1]}"
+    else:
+        t = f"The truth about {a} nobody talks about"
+    return t[:limit]

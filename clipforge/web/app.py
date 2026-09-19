@@ -9,7 +9,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse, File
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from itsdangerous import URLSafeTimedSerializer, BadSignature
-from .. import db, pipeline, factcheck, captions, brand
+from .. import db, pipeline, factcheck, captions, brand, autopilot, youtube, notify
 from ..config import cfg, env, PROJECTS, UPLOADS, ROOT, CACHE, device
 from ..jobs import runner
 from .. import __version__
@@ -44,6 +44,7 @@ def _housekeeping():
 @app.on_event("startup")
 def _on_startup():
     _housekeeping()
+    autopilot.start_threads()
 
 SESSION_DAYS = 30
 
@@ -79,6 +80,12 @@ def logged_in(request: Request) -> bool:
 @app.middleware("http")
 async def auth_middleware(request: Request, call_next):
     path = request.url.path
+    host = request.headers.get("host", "")
+    if host and not host.startswith(("127.", "localhost", "0.0.0.0")) and not env("PUBLIC_URL"):
+        proto = request.headers.get("x-forwarded-proto", request.url.scheme)
+        url = f"{proto}://{host}"
+        if db.get_setting("public_url") != url:
+            db.set_setting("public_url", url)
     if path.startswith("/static") or path in ("/login", "/health", "/manifest.webmanifest", "/sw.js") or logged_in(request):
         return await call_next(request)
     if path.startswith("/api/"):
@@ -351,6 +358,99 @@ def api_cleanup():
     return RedirectResponse(f"/status?freed={freed}", status_code=303)
 
 
+# ----------------------------------------------------------------------------- autopilot
+@app.get("/autopilot", response_class=HTMLResponse)
+def autopilot_page(request: Request, msg: str = ""):
+    st = autopilot.get_settings()
+    posts = db.rows("SELECT p.*, c.title AS clip_title FROM posts p LEFT JOIN clips c ON c.id=p.clip_id ORDER BY p.created_at DESC LIMIT 30")
+    for p in posts:
+        p["when"] = notify._fmt_time(p["publish_at"]) if p.get("publish_at") else ""
+    seen = db.rows("SELECT * FROM seen_videos ORDER BY seen_at DESC LIMIT 10")
+    return page(request, "autopilot.html", st=st, posts=posts, seen=seen, msg=msg,
+                yt={"configured": youtube.configured(), "connected": youtube.connected(), "channel": db.get_setting("youtube_channel") or {}},
+                tg={"enabled": notify.enabled(), "chat": bool(notify.chat_id())}, public_url=autopilot.base_url())
+
+
+@app.post("/api/autopilot")
+async def api_autopilot_save(request: Request, enabled: str = Form(""), channel_url: str = Form(""), check_minutes: int = Form(60),
+                             clips: int = Form(5), length: str = Form("auto"), keywords: str = Form(""), mode: str = Form("ask"),
+                             post_times: str = Form("11:00,18:00"), timezone: str = Form("Europe/London"), max_posts_per_day: int = Form(2),
+                             description_footer: str = Form(""), public: str = Form("on")):
+    times = [t.strip() for t in post_times.split(",") if re_time(t.strip())]
+    autopilot.save_settings({"enabled": enabled == "on", "channel_url": channel_url.strip(), "check_minutes": max(10, int(check_minutes)),
+                             "clips": max(1, min(10, int(clips))), "length": length if length in ("auto", "short", "medium", "long") else "auto",
+                             "keywords": [k.strip() for k in keywords.split(",") if k.strip()], "mode": mode if mode in ("ask", "auto") else "ask",
+                             "post_times": times or ["12:00"], "timezone": timezone.strip() or "Europe/London",
+                             "max_posts_per_day": max(1, min(10, int(max_posts_per_day))), "description_footer": description_footer,
+                             "public": public == "on"})
+    return RedirectResponse("/autopilot?msg=Saved", status_code=303)
+
+
+def re_time(t: str) -> bool:
+    import re
+    return bool(re.fullmatch(r"([01]?\d|2[0-3]):[0-5]\d", t))
+
+
+@app.post("/api/autopilot/check")
+def api_autopilot_check():
+    started = autopilot.check_channel_once()
+    return RedirectResponse(f"/autopilot?msg=Checked the channel, started {len(started)} new episode(s)", status_code=303)
+
+
+@app.post("/api/autopilot/test-telegram")
+def api_autopilot_test_tg():
+    r = notify.send_text("👋 CLIPFORGE is linked to this chat.")
+    return RedirectResponse("/autopilot?msg=" + ("Telegram message sent" if r.get("ok") else "Telegram failed: send /start to your bot first"), status_code=303)
+
+
+@app.post("/api/posts/{clip_id}/queue")
+def api_queue_post(clip_id: str):
+    p = autopilot.queue_post(clip_id)
+    notify.refresh_clip_message(clip_id, autopilot.base_url())
+    return {"ok": bool(p), "post": p}
+
+
+@app.post("/api/posts/{clip_id}/skip")
+def api_skip_post(clip_id: str):
+    autopilot.skip_clip(clip_id)
+    notify.refresh_clip_message(clip_id, autopilot.base_url())
+    return {"ok": True}
+
+
+@app.post("/api/posts/{clip_id}/cancel")
+def api_cancel_post(clip_id: str):
+    autopilot.cancel_post(clip_id)
+    notify.refresh_clip_message(clip_id, autopilot.base_url())
+    return {"ok": True}
+
+
+@app.get("/oauth/youtube/start")
+def oauth_youtube_start():
+    if not youtube.configured():
+        return RedirectResponse("/autopilot?msg=Add YOUTUBE_CLIENT_ID and YOUTUBE_CLIENT_SECRET first (see DEPLOY.md)", status_code=303)
+    return RedirectResponse(youtube.auth_url(autopilot.base_url() + "/oauth/youtube/callback"), status_code=303)
+
+
+@app.get("/oauth/youtube/callback")
+def oauth_youtube_callback(code: str = "", state: str = "", error: str = ""):
+    if error or not code:
+        return RedirectResponse(f"/autopilot?msg=YouTube said no: {error or 'no code'}", status_code=303)
+    if state != db.get_setting("youtube_oauth_state"):
+        return RedirectResponse("/autopilot?msg=Login check failed, try again", status_code=303)
+    try:
+        info = youtube.finish_auth(autopilot.base_url() + "/oauth/youtube/callback", code)
+    except Exception as e:  # noqa: BLE001
+        db.log_error("youtube", str(e))
+        return RedirectResponse(f"/autopilot?msg=Could not connect: {str(e)[:120]}", status_code=303)
+    return RedirectResponse(f"/autopilot?msg=Connected to {info.get('title', 'YouTube')}", status_code=303)
+
+
+@app.post("/api/youtube/disconnect")
+def api_youtube_disconnect():
+    youtube.disconnect()
+    return RedirectResponse("/autopilot?msg=YouTube disconnected", status_code=303)
+
+
 @app.get("/health")
 def health():
     return {"ok": True, "version": __version__, "jobs_running": runner.running_count()}
@@ -409,7 +509,16 @@ def clip_json(c: dict) -> dict:
         "zooms": (d.get("render") or {}).get("zooms") or [],
         "thumbnail_url": f"/api/clips/{c['id']}/thumbnail" if c.get("path") else "",
         "broll": (d.get("render") or {}).get("broll") or {},
+        "post": _post_state(c["id"]),
     }
+
+
+def _post_state(clip_id: str) -> dict:
+    p = db.row("SELECT status, publish_at, youtube_id, error FROM posts WHERE clip_id=? ORDER BY created_at DESC LIMIT 1", (clip_id,))
+    if not p:
+        return {}
+    p["when"] = notify._fmt_time(p["publish_at"]) if p.get("publish_at") else ""
+    return p
 
 
 @app.get("/api/projects")

@@ -317,3 +317,40 @@ def test_status_and_cleanup(tmp_path):
     freed = pipeline.cleanup_old_sources(days=7)
     assert freed >= 1000 and not src.exists()
     pipeline.delete_project(pid)
+
+
+def test_autopilot_slots_and_titles():
+    from clipforge import autopilot, moments, effects
+    autopilot.save_settings({"post_times": ["11:00", "18:00"], "max_posts_per_day": 2, "timezone": "Europe/London"})
+    import time
+    s1 = autopilot.next_slot()
+    assert s1 > time.time()
+    from datetime import datetime
+    d = datetime.fromtimestamp(s1, autopilot.tz())
+    assert (d.hour, d.minute) in ((11, 0), (18, 0))
+    # titles never start with the clip's opening words
+    t = "So the Bible says in Genesis that Nimrod built the tower of Babel. And people ask what happened to Nimrod after that?"
+    title = moments._title_from(t, ["Bible"])
+    assert not title.lower().startswith("so the bible") and "Nimrod" in title
+    assert "Kanye" in moments._title_from("Then Kanye said that he was the greatest and Drake laughed.", [])
+    assert effects.hook_text_from("", t).endswith("...")
+
+
+def test_post_text_uses_footer(monkeypatch):
+    from clipforge import autopilot
+    autopilot.save_settings({"description_footer": "Full episode: {source_url}\nCredit: {credit}"})
+    clip = {"title": "Kanye said WHAT about Drake?", "data": {"description": "Wild moment.", "hashtags": ["#shorts", "#kanye"]}}
+    proj = {"source_url": "https://youtu.be/abc", "channel": "Jumpers Jump", "options": {"credit_name": "@JumpersJump", "keywords": ["music"]}}
+    title, desc, tags = autopilot.post_text(clip, proj)
+    assert title.endswith("#Shorts") and "https://youtu.be/abc" in desc and "@JumpersJump" in desc
+    assert "kanye" in tags and "music" in tags
+
+
+def test_telegram_caption_and_buttons():
+    from clipforge import notify
+    clip = {"id": "c1", "title": "T <b>", "start": 0, "end": 30, "score": 90,
+            "data": {"fact_check": {"verdict": "ok", "type": "faith", "summary": "fine", "red_flags": []}}}
+    cap = notify.clip_caption(clip, None, "https://x")
+    assert "&lt;b&gt;" in cap and "🟢" in cap and "https://x/clip/c1" in cap
+    assert notify.clip_buttons("c1", None)[0][0]["callback_data"] == "post:c1"
+    assert notify.clip_buttons("c1", {"status": "waiting"})[0][0]["callback_data"] == "cancel:c1"
