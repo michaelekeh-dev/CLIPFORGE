@@ -138,11 +138,14 @@ def download(url: str, progress=None) -> dict:
 def _classify(e: Exception) -> Exception:
     msg = str(e)
     low = msg.lower()
+    reason = re.sub(r"\s+", " ", msg.replace("ERROR:", "").strip())[:260]
+    have_cookies = bool(_cookie_file())
     if any(h in low for h in BLOCK_HINTS):
-        return DownloadBlocked(
-            "YouTube blocked the download from this server. Add a cookies file (YTDLP_COOKIES, see DEPLOY.md) "
-            "or upload the video file instead.")
-    return DownloadBlocked("Could not download the video: " + msg[:300] + ". You can upload the file instead.")
+        tip = ("Cookies are set but YouTube still refused. Export fresh cookies from a logged-in spare account and try again, "
+               "or upload the video file instead." if have_cookies else
+               "Add a cookies file (YTDLP_COOKIES or YTDLP_COOKIES_B64, see DEPLOY.md) or upload the video file instead.")
+        return DownloadBlocked(f"YouTube blocked the download from this server. {tip} (yt-dlp said: {reason})")
+    return DownloadBlocked(f"Could not download the video. You can upload the file instead. (yt-dlp said: {reason})")
 
 
 def import_upload(src: Path, project_dir: Path, title: str = "") -> dict:
