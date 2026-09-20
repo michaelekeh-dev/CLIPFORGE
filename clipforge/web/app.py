@@ -362,7 +362,7 @@ def status_info() -> dict:
 
 
 @app.get("/status", response_class=HTMLResponse)
-def status_page(request: Request, check: str = ""):
+def status_page(request: Request, check: str = "", msg: str = ""):
     result = None
     if check.strip():
         try:
@@ -371,7 +371,8 @@ def status_page(request: Request, check: str = ""):
             result = {"verdict": f"The check itself failed: {e}", "clients": [], "formats": [], "url": check,
                       "pot": download.pot_provider_status(), "js": download.js_solver_status(), "proxy": bool(download.proxy_url()),
                       "cookies": bool(download._cookie_file()), "warnings": []}
-    return page(request, "status.html", st=status_info(), check=check, result=result)
+    return page(request, "status.html", st=status_info(), check=check, result=result, msg=msg,
+                store=pipeline.storage_breakdown())
 
 
 @app.get("/api/status")
@@ -380,9 +381,23 @@ def api_status():
 
 
 @app.post("/api/cleanup")
-def api_cleanup():
-    freed = pipeline.cleanup_old_sources()
-    return RedirectResponse(f"/status?freed={freed}", status_code=303)
+def api_cleanup(kind: str = Form("safe")):
+    if kind == "old":
+        freed = pipeline.cleanup_old_sources()
+    else:
+        freed = pipeline.free_space("sources" if kind == "sources" else "safe")
+    gb = freed / 1e9
+    return RedirectResponse(f"/status?msg=Freed {gb:.2f} GB", status_code=303)
+
+
+@app.post("/api/projects/delete-unfinished")
+def api_delete_unfinished():
+    n = 0
+    for p in db.rows("SELECT id FROM projects WHERE status != 'done'"):
+        if not db.row("SELECT 1 FROM clips WHERE project_id=? AND status='done'", (p["id"],)):
+            pipeline.delete_project(p["id"])
+            n += 1
+    return RedirectResponse(f"/status?msg=Deleted {n} project(s) that had no finished clips", status_code=303)
 
 
 # ----------------------------------------------------------------------------- autopilot

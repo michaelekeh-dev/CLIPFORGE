@@ -354,3 +354,34 @@ def test_telegram_caption_and_buttons():
     assert "&lt;b&gt;" in cap and "🟢" in cap and "https://x/clip/c1" in cap
     assert notify.clip_buttons("c1", None)[0][0]["callback_data"] == "post:c1"
     assert notify.clip_buttons("c1", {"status": "waiting"})[0][0]["callback_data"] == "cancel:c1"
+
+
+def test_storage_breakdown_and_free_space(tmp_path, monkeypatch):
+    from clipforge import pipeline
+    from clipforge.config import PROJECTS
+    pid = "p_disktest"
+    d = PROJECTS / pid
+    (d / "clips").mkdir(parents=True, exist_ok=True)
+    (d / "work" / "x").mkdir(parents=True, exist_ok=True)
+    (d / "source.mp4").write_bytes(b"s" * 5000)
+    (d / "clips" / "clip_01.mp4").write_bytes(b"c" * 2000)
+    (d / "work" / "x" / "tmp.wav").write_bytes(b"w" * 3000)
+    b = pipeline.storage_breakdown()
+    assert b["sources"] >= 5000 and b["clips"] >= 2000 and b["work"] >= 3000
+    freed = pipeline.free_space("safe")
+    assert freed >= 3000
+    assert (d / "source.mp4").exists() and (d / "clips" / "clip_01.mp4").exists()  # kept
+    assert not (d / "work").exists()  # working files gone
+    pipeline.free_space("sources")
+    assert not (d / "source.mp4").exists() and (d / "clips" / "clip_01.mp4").exists()
+    import shutil as _sh
+    _sh.rmtree(d, ignore_errors=True)
+
+
+def test_space_check_refuses_and_explains(monkeypatch):
+    from clipforge import pipeline
+    import shutil as _sh
+    monkeypatch.setattr(_sh, "disk_usage", lambda p: type("U", (), {"free": 100 * 1024 * 1024, "total": 0, "used": 0})())
+    with pytest.raises(RuntimeError) as e:
+        pipeline.space_check(3.0)
+    assert "free" in str(e.value).lower() and "Status page" in str(e.value)

@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import shutil
 import time
+import os
 from pathlib import Path
 from . import db, media, download, transcribe, moments, factcheck, render, captions, reframe, filler, effects, brand, edits as ed, broll
 from .config import cfg as _cfg, output_size, env as _env
@@ -42,6 +43,7 @@ def run_project(pid: str, progress) -> None:
     pdir = project_dir(pid)
 
     # 1. source
+    space_check()
     progress("Downloading", 1)
     if proj["source_type"] == "url":
         meta = download.download(proj["source_url"], progress)
@@ -290,6 +292,94 @@ def delete_project(pid: str):
     db.execute("DELETE FROM clips WHERE project_id=?", (pid,))
     db.execute("DELETE FROM projects WHERE id=?", (pid,))
     shutil.rmtree(PROJECTS / pid, ignore_errors=True)
+
+
+def dir_size(path: Path) -> int:
+    total = 0
+    for root, _, files in os.walk(path):
+        for f in files:
+            try:
+                total += os.path.getsize(os.path.join(root, f))
+            except OSError:
+                pass
+    return total
+
+
+def storage_breakdown() -> dict:
+    """Where the disk went, in plain categories, plus what each cleanup would free."""
+    from .config import DATA, CACHE, UPLOADS, MODELS
+    from .download import DL_DIR
+    sources = clips = work = 0
+    for p in PROJECTS.glob("*"):
+        if not p.is_dir():
+            continue
+        for f in p.glob("source.*"):
+            try:
+                sources += f.stat().st_size
+            except OSError:
+                pass
+        clips += dir_size(p / "clips")
+        work += dir_size(p / "work") + dir_size(p / "analysis")
+        for extra in ("audio16k.wav", "clips.zip"):
+            f = p / extra
+            if f.exists():
+                work += f.stat().st_size
+    downloads = dir_size(DL_DIR)
+    uploads = dir_size(UPLOADS)
+    models = dir_size(MODELS)
+    other_cache = max(0, dir_size(CACHE) - downloads)
+    total = dir_size(DATA)
+    free = shutil.disk_usage(DATA).free
+    return {"total": total, "free": free, "sources": sources, "clips": clips, "work": work,
+            "downloads": downloads, "uploads": uploads, "models": models, "cache": other_cache,
+            "reclaimable": sources + work + downloads + uploads + other_cache}
+
+
+def free_space(kind: str = "safe") -> int:
+    """Delete files that can be made again. 'safe' keeps every source video, 'sources' deletes those too.
+    Clips, transcripts and the database are never touched."""
+    from .config import CACHE, UPLOADS
+    from .download import DL_DIR
+    freed = 0
+    for p in PROJECTS.glob("*"):
+        if not p.is_dir():
+            continue
+        for sub in ("work", "analysis"):
+            d = p / sub
+            if d.exists():
+                freed += dir_size(d)
+                shutil.rmtree(d, ignore_errors=True)
+        for extra in ("audio16k.wav", "clips.zip"):
+            f = p / extra
+            if f.exists():
+                freed += f.stat().st_size
+                f.unlink(missing_ok=True)
+    for d in (DL_DIR, UPLOADS, CACHE / "broll"):
+        if d.exists():
+            freed += dir_size(d)
+            shutil.rmtree(d, ignore_errors=True)
+            d.mkdir(parents=True, exist_ok=True)
+    if kind == "sources":
+        for p in PROJECTS.glob("*/source.*"):
+            try:
+                freed += p.stat().st_size
+                p.unlink(missing_ok=True)
+            except OSError:
+                pass
+    return freed
+
+
+def space_check(need_gb: float = 3.0) -> None:
+    """Refuse to start a download that will obviously not fit, and say what to do about it."""
+    from .config import DATA
+    free = shutil.disk_usage(DATA).free
+    if free < need_gb * 1e9:
+        b = storage_breakdown()
+        raise RuntimeError(
+            f"Only {free / 1e9:.1f} GB of disk is free, which is not enough for an episode. "
+            f"About {b['reclaimable'] / 1e9:.1f} GB can be freed on the Status page "
+            f"(source videos {b['sources'] / 1e9:.1f} GB, working files {b['work'] / 1e9:.1f} GB). "
+            "Your clips are never deleted by that. You can also grow the disk in your host's settings.")
 
 
 def cleanup_old_sources(days: float | None = None):

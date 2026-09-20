@@ -136,3 +136,7 @@ ul.plain { list-style: none; padding: 0; margin: 0; display: flex; flex-directio
 .post-row { color: var(--muted); display: flex; gap: 8px; align-items: center; flex-wrap: wrap; min-height: 20px; }
 .ap-grid label { display: flex; flex-direction: column; gap: 6px; font-size: .85rem; color: var(--muted); }
 .pill.on { color: var(--ok); } .pill.off { color: var(--muted); }
+table.disk { width: 100%; border-collapse: collapse; font-size: .9rem; }
+table.disk td { padding: 6px 8px; border-bottom: 1px solid var(--line); }
+table.disk td:nth-child(2) { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+table.disk td:nth-child(3) { color: var(--muted); font-size: .85rem; }

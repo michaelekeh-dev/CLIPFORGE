@@ -3,6 +3,7 @@
 {% block nav %}<a class="muted" href="/">All projects</a>{% endblock %}
 {% block content %}
 <h1>Status</h1>
+{% if msg %}<div class="notice">{{ msg }}</div>{% endif %}
 <div class="stats">
   <div class="card stat"><div class="muted small">Storage used</div><div class="big">{{ st.storage_gb }} GB</div><div class="muted small">{{ st.free_gb }} GB free on disk</div></div>
   <div class="card stat"><div class="muted small">Jobs running</div><div class="big">{{ st.jobs_running }}</div><div class="muted small">{{ st.jobs_queued }} waiting</div></div>
@@ -21,7 +22,29 @@
     <li>{{ '🟢' if st.js.ok else '🔴' }} YouTube challenge solver {{ '(' + st.js.runtime + ' + yt-dlp-ejs ' + st.js.ejs + ')' if st.js.ok else '(missing: YouTube will hold back every video)' }}</li>
   </ul>
   <p class="muted small">Source videos are deleted automatically after {{ st.delete_days }} days. Clips are kept. Version {{ version }}, build {{ st.build }}.</p>
-  <form method="post" action="/api/cleanup"><button class="btn secondary small" type="submit">Delete old source videos now</button></form>
+</section>
+
+<section class="card">
+  <h3>Disk</h3>
+  <table class="disk">
+    <tr><td>Your clips</td><td>{{ '%.2f'|format(store.clips / 1e9) }} GB</td><td class="muted">never deleted automatically</td></tr>
+    <tr><td>Source videos</td><td>{{ '%.2f'|format(store.sources / 1e9) }} GB</td><td class="muted">needed only to re-render a clip</td></tr>
+    <tr><td>Working files</td><td>{{ '%.2f'|format(store.work / 1e9) }} GB</td><td class="muted">made again when needed</td></tr>
+    <tr><td>Downloads and uploads</td><td>{{ '%.2f'|format((store.downloads + store.uploads) / 1e9) }} GB</td><td class="muted">already copied into projects</td></tr>
+    <tr><td>Speech model</td><td>{{ '%.2f'|format(store.models / 1e9) }} GB</td><td class="muted">keep it, or it downloads again</td></tr>
+    <tr><td><b>Free space</b></td><td><b>{{ '%.2f'|format(store.free / 1e9) }} GB</b></td><td class="muted">{{ '%.2f'|format(store.total / 1e9) }} GB used by CLIPFORGE</td></tr>
+  </table>
+  <div class="row" style="margin-top:12px">
+    <form method="post" action="/api/cleanup"><input type="hidden" name="kind" value="safe">
+      <button class="btn secondary" type="submit">Free {{ '%.2f'|format((store.work + store.downloads + store.uploads + store.cache) / 1e9) }} GB (keep sources)</button></form>
+    <form method="post" action="/api/cleanup"><input type="hidden" name="kind" value="sources">
+      <button class="btn primary" type="submit">Free {{ '%.2f'|format(store.reclaimable / 1e9) }} GB (also delete source videos)</button></form>
+    <form method="post" action="/api/cleanup"><input type="hidden" name="kind" value="old">
+      <button class="btn secondary" type="submit">Delete sources older than {{ st.delete_days }} days</button></form>
+    <form method="post" action="/api/projects/delete-unfinished"><button class="btn danger" type="submit">Delete projects with no finished clips</button></form>
+  </div>
+  <p class="muted small">Your clips and transcripts survive all of these. Deleting source videos only means a clip cannot be
+    re-rendered later without uploading the episode again.</p>
 </section>
 <section class="card">
   <h3>Check a YouTube link</h3>
