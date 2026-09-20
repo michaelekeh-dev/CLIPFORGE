@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+{% block title %}Numbers · CLIPFORGE{% endblock %}
+{% block nav %}<a class="muted" href="/">All projects</a>{% endblock %}
+{% block content %}
+<h1>Your numbers</h1>
+{% if msg %}<div class="notice">{{ msg }}</div>{% endif %}
+
+{% if not r.ok %}
+<section class="card">
+  <p>{{ r.detail }}</p>
+  {% if not yt.connected %}<a class="btn primary" href="/autopilot">Connect my channel</a>{% endif %}
+</section>
+{% else %}
+<div class="stats">
+  <div class="card stat"><div class="muted small">Shorts posted</div><div class="big">{{ r.summary.shorts }}</div>
+    <div class="muted small">{{ r.summary.judged }} old enough to judge</div></div>
+  <div class="card stat"><div class="muted small">Typical clip</div><div class="big">{{ r.summary.median_views }}</div>
+    <div class="muted small">views · best was {{ r.summary.best_views }}</div></div>
+  <div class="card stat"><div class="muted small">Posting</div><div class="big">{{ r.cadence.per_week }}</div>
+    <div class="muted small">a week · {{ r.cadence.last_30_days }} in the last 30 days</div></div>
+  <div class="card stat"><div class="muted small">Watched</div>
+    <div class="big">{{ (r.summary.median_kept|string + '%') if r.summary.median_kept is not none else '—' }}</div>
+    <div class="muted small">{{ 'of a typical clip' if r.summary.median_kept is not none else 'needs one extra tap' }}</div></div>
+</div>
+
+<section class="card">
+  <h3>What this says</h3>
+  <ul class="plain">
+    {% for a in r.advice %}<li>• {{ a }}</li>{% endfor %}
+  </ul>
+  {% if not has_analytics and yt.connected %}
+  <a class="btn secondary" href="/oauth/youtube/start">Allow retention (one tap, reconnects the same channel)</a>
+  {% endif %}
+</section>
+
+<section class="card">
+  <h3>When you posted</h3>
+  {% if not r.times.enough %}
+  <p class="muted">{{ r.times.have }} of the {{ r.times.need }} settled Shorts needed before this is worth reading.
+    Anything said now would be noise dressed up as advice.</p>
+  {% else %}
+  <p class="muted small">Times are {{ r.timezone }}. A normal clip of yours gets {{ r.times.typical }} views, so
+    <b>1.4×</b> below means 40% better than your normal.</p>
+  <table class="disk">
+    {% for d in r.times.days %}
+    <tr><td>{{ d.label }}</td><td>{{ d.median }} views</td>
+      <td class="muted">{{ d.times_normal }}× normal · {{ d.uploads }} uploads</td></tr>
+    {% endfor %}
+  </table>
+  {% if r.times.hours %}
+  <table class="disk" style="margin-top:10px">
+    {% for h in r.times.hours %}
+    <tr><td>{{ h.label }}</td><td>{{ h.median }} views</td>
+      <td class="muted">{{ h.times_normal }}× normal · {{ h.uploads }} uploads</td></tr>
+    {% endfor %}
+  </table>
+  {% if r.times.times %}
+  <form method="post" action="/api/numbers/use-times" style="margin-top:12px">
+    <button class="btn primary" type="submit">Make autopilot post at {{ r.times.times|join(' and ') }}</button></form>
+  {% endif %}
+  <p class="muted small">Autopilot posts at {{ st.post_times|join(', ') }} right now.</p>
+  {% endif %}
+  {% endif %}
+</section>
+
+<section class="card">
+  <h3>Best clips</h3>
+  <table class="disk">
+    {% for v in r.top %}
+    <tr><td><a href="https://youtu.be/{{ v.id }}" target="_blank" rel="noopener">{{ v.title[:70] }}</a></td>
+      <td>{{ v.views }} views</td>
+      <td class="muted">{{ (v.kept_percent|string + '% watched') if v.kept_percent else '' }}</td></tr>
+    {% endfor %}
+  </table>
+  <p class="muted small">Copy what worked. The title style on the top clip is the one to keep using.</p>
+</section>
+
+<section class="card">
+  <h3>Newest</h3>
+  <table class="disk">
+    {% for v in r.recent %}
+    <tr><td><a href="https://youtu.be/{{ v.id }}" target="_blank" rel="noopener">{{ v.title[:70] }}</a></td>
+      <td>{{ v.views }} views</td><td class="muted">{{ 'Short' if v.short else 'long video' }}</td></tr>
+    {% endfor %}
+  </table>
+</section>
+
+<form method="get" action="/numbers"><input type="hidden" name="refresh" value="1">
+  <button class="btn secondary" type="submit">Get fresh numbers from YouTube</button></form>
+<p class="muted small">Cached for a few hours so we do not run out of YouTube's daily allowance.</p>
+{% endif %}
+{% endblock %}

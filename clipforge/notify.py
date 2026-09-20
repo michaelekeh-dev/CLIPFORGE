@@ -153,9 +153,12 @@ def handle_update(u: dict, base_url: str):
         chat = str(m["chat"]["id"])
         if text.startswith("/start"):
             db.set_setting("telegram_chat_id", chat)
-            send_text("Linked. Finished clips will show up here with Post / Skip buttons.\nCommands: /status, /post <link> (start a new episode), /pause, /resume", chat)
+            send_text("Linked. Finished clips will show up here with Post / Skip buttons.\nCommands: /status, /stats, /post <link> (start a new episode), /pause, /resume", chat)
         elif text.startswith("/status"):
             send_text(autopilot.status_text(), chat)
+        elif text.startswith("/stats") or text.startswith("/numbers"):
+            from . import analytics
+            send_text(analytics.text(), chat)
         elif text.startswith("/pause"):
             autopilot.save_settings({"enabled": False}); send_text("Autopilot paused.", chat)
         elif text.startswith("/resume"):
@@ -165,7 +168,7 @@ def handle_update(u: dict, base_url: str):
             pid = autopilot.start_project_from_url(url)
             send_text(f"Started. I'll send the clips when they're ready.\n{base_url}/project/{pid}", chat)
         elif text.startswith("/help"):
-            send_text("/status – what's going on\n/post <youtube link> – clip an episode now\n/pause /resume – autopilot", chat)
+            send_text("/status – what's going on\n/stats – your channel numbers and when to post\n/post <youtube link> – clip an episode now\n/pause /resume – autopilot", chat)
         return
     if "callback_query" in u:
         q = u["callback_query"]

@@ -9,7 +9,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse, File
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from itsdangerous import URLSafeTimedSerializer, BadSignature
-from .. import db, pipeline, factcheck, captions, brand, autopilot, youtube, notify, download, llm
+from .. import db, pipeline, factcheck, captions, brand, autopilot, youtube, notify, download, llm, analytics
 from ..config import cfg, env, PROJECTS, UPLOADS, ROOT, CACHE, device
 from ..jobs import runner
 from .. import __version__
@@ -402,6 +402,24 @@ def api_delete_unfinished():
 
 
 # ----------------------------------------------------------------------------- autopilot
+@app.get("/numbers", response_class=HTMLResponse)
+def numbers_page(request: Request, refresh: str = "", msg: str = ""):
+    r = analytics.report(force=bool(refresh))
+    return page(request, "numbers.html", r=r, msg=msg, st=autopilot.get_settings(),
+                yt={"configured": youtube.configured(), "connected": youtube.connected()},
+                has_analytics=analytics.has_analytics())
+
+
+@app.post("/api/numbers/use-times")
+def api_use_times():
+    r = analytics.report()
+    times = (r.get("times") or {}).get("times") or []
+    if not times:
+        return RedirectResponse("/numbers?msg=Not enough uploads yet to pick your hours.", status_code=303)
+    autopilot.save_settings({"post_times": sorted(set(times)), "max_posts_per_day": len(set(times))})
+    return RedirectResponse("/numbers?msg=Autopilot now posts at " + ", ".join(sorted(set(times))), status_code=303)
+
+
 @app.get("/autopilot", response_class=HTMLResponse)
 def autopilot_page(request: Request, msg: str = ""):
     st = autopilot.get_settings()

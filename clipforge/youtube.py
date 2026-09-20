@@ -6,7 +6,9 @@ from pathlib import Path
 from . import db
 from .config import env
 
-SCOPES = ["https://www.googleapis.com/auth/youtube.upload", "https://www.googleapis.com/auth/youtube.readonly"]
+SCOPES = ["https://www.googleapis.com/auth/youtube.upload", "https://www.googleapis.com/auth/youtube.readonly",
+          # retention and traffic sources, so the Numbers page can say what is actually working
+          "https://www.googleapis.com/auth/yt-analytics.readonly"]
 
 
 def configured() -> bool:
