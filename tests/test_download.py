@@ -95,4 +95,4 @@ def test_a_pure_format_problem_says_so_plainly(fake_ytdlp):
     FakeYDL.made_file = None
     with pytest.raises(d.DownloadBlocked) as err:
         d.download("https://youtu.be/vid123")
-    assert "no video we could use" in str(err.value) and "blocked" not in str(err.value)
+    assert "held back every video stream" in str(err.value) and "blocked the download" not in str(err.value)

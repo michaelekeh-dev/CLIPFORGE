@@ -9,7 +9,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse, File
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from itsdangerous import URLSafeTimedSerializer, BadSignature
-from .. import db, pipeline, factcheck, captions, brand, autopilot, youtube, notify
+from .. import db, pipeline, factcheck, captions, brand, autopilot, youtube, notify, download
 from ..config import cfg, env, PROJECTS, UPLOADS, ROOT, CACHE, device
 from ..jobs import runner
 from .. import __version__
@@ -318,6 +318,18 @@ def service_worker():
     return FileResponse(HERE / "static" / "sw.js", media_type="application/javascript", headers={"Service-Worker-Allowed": "/"})
 
 
+def _build_id() -> str:
+    """Which build is running: the newest file timestamp, so you can tell a deploy actually landed."""
+    import datetime
+    newest = 0.0
+    for f in (ROOT / "clipforge").rglob("*.py"):
+        try:
+            newest = max(newest, f.stat().st_mtime)
+        except OSError:
+            pass
+    return datetime.datetime.fromtimestamp(newest).strftime("%d %b %H:%M") if newest else "?"
+
+
 def status_info() -> dict:
     import os
     import shutil as _sh
@@ -344,13 +356,21 @@ def status_info() -> dict:
         "device": device(), "cpus": os.cpu_count(), "transcriber": transcribe.choose_backend(),
         "have": {"anthropic": bool(env("ANTHROPIC_API_KEY")), "cookies": bool(env("YTDLP_COOKIES") or env("YTDLP_COOKIES_B64")), "pexels": bool(env("PEXELS_API_KEY")),
                  "hf": bool(env("HF_TOKEN")), "password": bool(env("APP_PASSWORD"))},
-        "delete_days": cfg.get("app.delete_sources_after_days", 7), "errors": errors,
+        "delete_days": cfg.get("app.delete_sources_after_days", 7), "errors": errors, "build": _build_id(),
+        "pot": download.pot_provider_status(),
     }
 
 
 @app.get("/status", response_class=HTMLResponse)
-def status_page(request: Request):
-    return page(request, "status.html", st=status_info())
+def status_page(request: Request, check: str = ""):
+    result = None
+    if check.strip():
+        try:
+            result = download.diagnose(check.strip())
+        except Exception as e:  # noqa: BLE001
+            result = {"verdict": f"The check itself failed: {e}", "clients": [], "formats": [], "url": check,
+                      "pot": download.pot_provider_status(), "cookies": bool(download._cookie_file()), "warnings": []}
+    return page(request, "status.html", st=status_info(), check=check, result=result)
 
 
 @app.get("/api/status")
@@ -480,7 +500,7 @@ def terms():
 
 @app.get("/health")
 def health():
-    return {"ok": True, "version": __version__, "jobs_running": runner.running_count()}
+    return {"ok": True, "version": __version__, "jobs_running": runner.running_count(), "build": _build_id()}
 
 
 # ----------------------------------------------------------------------------- api

@@ -173,6 +173,146 @@ def download(url: str, progress=None) -> dict:
     return meta
 
 
+NOISE = ("retrying (", "please report this issue", "deprecated feature", "you have asked for")
+INTERESTING = ("sabr", "missing a url", "po token", "pot", "sign in", "cookie", "skipped", "throttl", "format")
+
+
+class _Collect:
+    """Captures yt-dlp's own warnings so the app can show why formats disappeared."""
+
+    def __init__(self):
+        self.lines: list[str] = []
+
+    def notable(self, limit: int = 3) -> list[str]:
+        """The warnings worth reading: no retry noise, no duplicates, most telling first."""
+        seen, out = set(), []
+        for kind in (True, False):  # interesting ones first
+            for l in self.lines:
+                if not l.startswith("WARNING"):
+                    continue
+                low = l.lower()
+                if any(n in low for n in NOISE):
+                    continue
+                if (any(i in low for i in INTERESTING)) != kind:
+                    continue
+                key = low[:80]
+                if key in seen:
+                    continue
+                seen.add(key)
+                out.append(l.replace("WARNING: ", "")[:220])
+        return out[:limit]
+
+    def debug(self, m):
+        if m.startswith("[debug] "):
+            return
+        self.lines.append(m)
+
+    def info(self, m):
+        self.lines.append(m)
+
+    def warning(self, m):
+        self.lines.append("WARNING: " + m)
+
+    def error(self, m):
+        self.lines.append("ERROR: " + m)
+
+
+def pot_provider_status() -> dict:
+    """Is the proof-of-origin token helper set up and reachable?"""
+    url = env("POT_PROVIDER_URL")
+    out = {"url": url, "set": bool(url), "reachable": False, "detail": "", "plugin": False}
+    try:
+        import yt_dlp as _y
+        _y.YoutubeDL({"quiet": True, "no_warnings": True})  # loading a client loads the plugins
+        from yt_dlp.extractor.youtube.pot._registry import _pot_providers
+        out["plugin"] = "BgUtilHTTP" in _pot_providers.value
+    except Exception as e:  # noqa: BLE001
+        out["detail"] = f"plugin check failed: {e}"
+    if not url:
+        return out
+    import httpx
+    for path in ("/ping", "/"):
+        try:
+            r = httpx.get(url.rstrip("/") + path, timeout=8)
+            out["reachable"] = r.status_code < 500
+            out["detail"] = f"{path} -> {r.status_code}"
+            if out["reachable"]:
+                break
+        except Exception as e:  # noqa: BLE001
+            out["detail"] = str(e)[:200]
+    return out
+
+
+def diagnose(url: str) -> dict:
+    """What the server can actually see for this link: cookies, token helper, and the formats offered."""
+    import yt_dlp
+    ck = _cookie_file()
+    res = {"url": url, "cookies": bool(ck), "pot": pot_provider_status(), "clients": [], "formats": [], "title": "",
+           "warnings": []}
+    xargs = {}
+    pot = env("POT_PROVIDER_URL")
+    if pot:
+        xargs["youtubepot-bgutilhttp"] = {"base_url": [pot.rstrip("/")]}
+    for client in (None, ["tv"], ["mweb"], ["web_safari"], ["android_vr"]):
+        log = _Collect()
+        o = {"quiet": True, "no_warnings": False, "skip_download": True, "noplaylist": True, "logger": log}
+        if ck and client != ["android_vr"]:
+            o["cookiefile"] = ck
+        ea = dict(xargs)
+        if client:
+            ea["youtube"] = {"player_client": client}
+        if ea:
+            o["extractor_args"] = ea
+        for rt in ("deno", "node"):
+            if shutil.which(rt):
+                o["js_runtimes"] = {rt: {}}
+                break
+        name = client[0] if client else "default"
+        try:
+            with yt_dlp.YoutubeDL(o) as ydl:
+                info = ydl.extract_info(url, download=False)
+            fmts = [f for f in (info.get("formats") or []) if f.get("url")]
+            video = [f for f in fmts if (f.get("vcodec") or "none") != "none"]
+            res["title"] = res["title"] or info.get("title") or ""
+            res["clients"].append({"client": name, "ok": True, "formats": len(fmts), "video_formats": len(video),
+                                   "best": max([f.get("height") or 0 for f in video] or [0]),
+                                   "warnings": log.notable()})
+            if not res["formats"]:
+                res["formats"] = [f"{f.get('format_id')} {f.get('ext')} {f.get('height') or ''}p" for f in video[-8:]]
+        except Exception as e:  # noqa: BLE001
+            res["clients"].append({"client": name, "ok": False, "error": _short_error(e), "warnings": log.notable()})
+        res["warnings"] += log.notable()
+    res["verdict"] = _verdict(res)
+    return res
+
+
+def _short_error(e: Exception) -> str:
+    """yt-dlp errors carry a lot of boilerplate; keep the part that says what went wrong."""
+    msg = re.sub(r"\s+", " ", str(e))
+    msg = re.sub(r"; please report this issue.*", "", msg)
+    msg = re.sub(r"\s*\(caused by .*", "", msg)
+    return msg.strip()[:240]
+
+
+def _verdict(res: dict) -> str:
+    good = [c for c in res["clients"] if c.get("ok") and c.get("video_formats")]
+    if good:
+        return f"Downloads should work: {good[0]['client']} offers {good[0]['video_formats']} video formats up to {good[0]['best']}p."
+    saw_sabr = any("sabr" in w.lower() or "missing a url" in w.lower() for w in res["warnings"])
+    if not res["pot"]["set"]:
+        return ("No formats came back and the token helper is not set. Add the bgutil service and POT_PROVIDER_URL "
+                "(DEPLOY.md, Railway step 6).")
+    if not res["pot"]["plugin"]:
+        return "The bgutil plugin is missing from this build. Redeploy so requirements.txt is installed again."
+    if not res["pot"]["reachable"]:
+        return (f"The token helper at {res['pot']['url']} cannot be reached ({res['pot']['detail']}). "
+                "Check the bgutil service is deployed and the URL matches its private name and port 4416.")
+    if saw_sabr:
+        return ("YouTube is holding back the video streams even with the token helper. Fresh cookies from a "
+                "logged-in account usually fix this.")
+    return "No client returned a usable video. See the per-client errors below."
+
+
 def _is_format_problem(e: Exception) -> bool:
     low = str(e).lower()
     return any(h in low for h in FORMAT_HINTS)
@@ -198,8 +338,9 @@ def _classify(e: Exception) -> Exception:
     have_cookies = bool(_cookie_file())
     if _is_format_problem(e):
         return DownloadBlocked(
-            "YouTube let us in but offered no video we could use for this one. It is usually a live stream, a members-only "
-            f"video, or one that is still processing. Try another episode or upload the file instead. (yt-dlp said: {reason})")
+            "YouTube answered but held back every video stream. Open the Status page and run 'Check a YouTube link' "
+            "on this URL: it says whether the token helper is reachable and what YouTube offered. "
+            f"Uploading the file always works. (yt-dlp said: {reason})")
     if any(h in low for h in BLOCK_HINTS):
         pot = " The token helper is set." if env("POT_PROVIDER_URL") else " Adding the token helper (POT_PROVIDER_URL, see DEPLOY.md) usually fixes this."
         tip = ("Cookies are set but YouTube still refused." + pot + " Export fresh cookies from a logged-in spare account and try again, "

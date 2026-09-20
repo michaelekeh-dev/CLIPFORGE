@@ -202,7 +202,7 @@ def run_poller(base_url_fn):
         out = _call("getUpdates", timeout=70, offset=offset, timeout_=None, allowed_updates=["message", "callback_query"])
         if not out.get("ok"):
             # back off a little, but recover quickly when Telegram comes back
-            state["backoff"] = min(30, state.get("backoff", 0) + 3)
+            state["backoff"] = min(10, state.get("backoff", 0) + 2)
             time.sleep(state["backoff"])
             continue
         state["backoff"] = 0

@@ -17,10 +17,34 @@
     <li>{{ '🟢' if st.have.pexels else '🟡' }} Pexels key {{ '' if st.have.pexels else '(no B-roll)' }}</li>
     <li>{{ '🟢' if st.have.hf else '🟡' }} Hugging Face token {{ '' if st.have.hf else '(speaker detection uses lip movement)' }}</li>
     <li>{{ '🟢' if st.have.password else '🔴' }} App password {{ '' if st.have.password else '(anyone can open the app!)' }}</li>
+    <li>{{ '🟢' if st.pot.set and st.pot.reachable else ('🟡' if st.pot.set else '🔴') }} YouTube token helper {{ '' if st.pot.set and st.pot.reachable else '(YouTube links need this on a server; see DEPLOY.md)' }}</li>
   </ul>
-  <p class="muted small">Source videos are deleted automatically after {{ st.delete_days }} days. Clips are kept. Version {{ version }}.</p>
+  <p class="muted small">Source videos are deleted automatically after {{ st.delete_days }} days. Clips are kept. Version {{ version }}, build {{ st.build }}.</p>
   <form method="post" action="/api/cleanup"><button class="btn secondary small" type="submit">Delete old source videos now</button></form>
 </section>
+<section class="card">
+  <h3>Check a YouTube link</h3>
+  <p class="muted small">Pastes go straight to the downloader and report what YouTube actually offered this server.</p>
+  <form method="get" action="/status" class="row">
+    <input class="input" name="check" value="{{ check }}" placeholder="https://www.youtube.com/watch?v=..." style="flex:1;min-width:200px">
+    <button class="btn primary" type="submit">Check</button>
+  </form>
+  {% if result %}
+  <div class="notice" style="margin-top:12px">{{ result.verdict }}</div>
+  <ul class="plain small">
+    <li>{{ '🟢' if result.cookies else '🟡' }} Cookies {{ 'loaded' if result.cookies else 'not set' }}</li>
+    <li>{{ '🟢' if result.pot.set and result.pot.reachable and result.pot.plugin else '🔴' }} Token helper:
+      {% if not result.pot.set %}not set{% else %}{{ result.pot.url }} · {{ 'reachable' if result.pot.reachable else 'NOT reachable' }} · plugin {{ 'loaded' if result.pot.plugin else 'missing' }} · {{ result.pot.detail }}{% endif %}</li>
+    {% for c in result.clients %}
+    <li>{{ '🟢' if c.ok and c.video_formats else '🔴' }} <b>{{ c.client }}</b>:
+      {% if c.ok %}{{ c.video_formats }} video formats{% if c.best %} up to {{ c.best }}p{% endif %}{% else %}{{ c.error }}{% endif %}
+      {% for w in c.warnings %}<br><span class="muted">{{ w[:200] }}</span>{% endfor %}</li>
+    {% endfor %}
+  </ul>
+  {% if result.formats %}<p class="muted small">Formats seen: {{ result.formats|join(', ') }}</p>{% endif %}
+  {% endif %}
+</section>
+
 <section class="card">
   <h3>Recent errors</h3>
   {% if st.errors %}<ul class="plain small">{% for e in st.errors %}<li><b>{{ e.when }}</b> · {{ e.where_ }}<br><span class="muted">{{ e.message[:300] }}</span></li>{% endfor %}</ul>{% else %}<p class="muted">None. Nice.</p>{% endif %}

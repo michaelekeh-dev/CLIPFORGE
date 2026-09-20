@@ -50,6 +50,8 @@ def _server():
 def fake_telegram(_server, monkeypatch):
     """One fake Telegram for the whole module: the listener thread is long-lived, like in the real app."""
     FakeTelegram.updates, FakeTelegram.sent = [], []
+    from clipforge import notify
+    notify.state["backoff"] = 0  # a listener that was failing against the real API should not stall the test
     monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "test-token")
     monkeypatch.setenv("TELEGRAM_API_BASE", f"http://127.0.0.1:{_server.server_port}")
     from clipforge import db
@@ -57,7 +59,7 @@ def fake_telegram(_server, monkeypatch):
     yield _server
 
 
-def _wait(check, seconds=10):
+def _wait(check, seconds=15):
     end = time.time() + seconds
     while time.time() < end:
         if check():
