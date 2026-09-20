@@ -259,12 +259,30 @@ def pot_provider_status() -> dict:
     return out
 
 
+def proxy_status() -> dict:
+    """Is the proxy set, and does it actually work? Reports the address YouTube would see."""
+    p = proxy_url()
+    out = {"set": bool(p), "working": False, "ip": "", "detail": "", "metadata_only": proxy_is_metadata_only()}
+    if not p:
+        return out
+    import httpx
+    try:
+        r = httpx.get("https://api.ipify.org?format=json", proxy=p, timeout=20)
+        r.raise_for_status()
+        out["ip"] = (r.json() or {}).get("ip", "")
+        out["working"] = bool(out["ip"])
+        out["detail"] = "traffic goes out from " + out["ip"]
+    except Exception as e:  # noqa: BLE001
+        out["detail"] = str(e)[:200]
+    return out
+
+
 def diagnose(url: str) -> dict:
     """What the server can actually see for this link: cookies, token helper, and the formats offered."""
     import yt_dlp
     ck = _cookie_file()
     res = {"url": url, "cookies": bool(ck), "pot": pot_provider_status(), "js": js_solver_status(),
-           "proxy": bool(proxy_url()), "clients": [], "formats": [], "title": "", "warnings": []}
+           "proxy": proxy_status(), "clients": [], "formats": [], "title": "", "warnings": []}
     xargs = {}
     pot = env("POT_PROVIDER_URL")
     if pot:
@@ -329,6 +347,9 @@ def _verdict(res: dict) -> str:
     blocked = [c for c in res["clients"] if not c.get("ok") and any(h in (c.get("error") or "").lower() for h in BLOCK_HINTS)]
     if blocked:
         got_token = any(c.get("token") for c in res["clients"])
+        if res.get("proxy", {}).get("set") and not res["proxy"].get("working"):
+            return ("The proxy is set but not working: " + res["proxy"].get("detail", "") +
+                    ". Check the address, port, username and password from your proxy dashboard.")
         if res.get("cookies"):
             return ("YouTube is refusing this server even though the solver and token helper are working. First remove "
                     "YTDLP_COOKIES_B64 and check again: stale cookies are the usual cause. If it still refuses, this "

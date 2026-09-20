@@ -19,6 +19,7 @@
     <li>{{ '🟢' if st.have.hf else '🟡' }} Hugging Face token {{ '' if st.have.hf else '(speaker detection uses lip movement)' }}</li>
     <li>{{ '🟢' if st.have.password else '🔴' }} App password {{ '' if st.have.password else '(anyone can open the app!)' }}</li>
     <li>{{ '🟢' if st.pot.set and st.pot.reachable else ('🟡' if st.pot.set else '🔴') }} YouTube token helper {{ '' if st.pot.set and st.pot.reachable else '(YouTube links need this on a server; see DEPLOY.md)' }}</li>
+    <li>{{ '🟢' if st.proxy.working else ('🔴' if st.proxy.set else '·') }} Proxy {{ st.proxy.detail if st.proxy.set else '(not set: only needed if YouTube blocks this server)' }}</li>
     <li>{{ '🟢' if st.js.ok else '🔴' }} YouTube challenge solver {{ '(' + st.js.runtime + ' + yt-dlp-ejs ' + st.js.ejs + ')' if st.js.ok else '(missing: YouTube will hold back every video)' }}</li>
   </ul>
   <p class="muted small">Source videos are deleted automatically after {{ st.delete_days }} days. Clips are kept. Version {{ version }}, build {{ st.build }}.</p>
@@ -57,7 +58,8 @@
   <div class="notice" style="margin-top:12px">{{ result.verdict }}</div>
   <ul class="plain small">
     <li>{{ '🟡' if result.cookies else '🟢' }} Cookies {{ 'loaded (remove them if downloads are refused)' if result.cookies else 'not set (good: YouTube rotates them)' }}</li>
-    <li>{{ '🟢' if result.proxy else '·' }} Proxy {{ 'in use (page only: the video comes straight from Google)' if result.proxy else 'not set' }}</li>
+    <li>{{ '🟢' if result.proxy.working else ('🔴' if result.proxy.set else '·') }} Proxy:
+      {% if not result.proxy.set %}not set{% else %}{{ result.proxy.detail }}{% if result.proxy.metadata_only %} · page only, the video comes straight from Google{% endif %}{% endif %}</li>
     <li>{{ '🟢' if result.js.ok else '🔴' }} Challenge solver: {{ (result.js.runtime or 'no JS runtime') }}{% if result.js.ejs %} + yt-dlp-ejs {{ result.js.ejs }}{% else %} · solver package missing{% endif %}</li>
     <li>{{ '🟢' if result.pot.set and result.pot.reachable and result.pot.plugin else '🔴' }} Token helper:
       {% if not result.pot.set %}not set{% else %}{{ result.pot.url }} · {{ 'reachable' if result.pot.reachable else 'NOT reachable' }} · plugin {{ 'loaded' if result.pot.plugin else 'missing' }} · {{ result.pot.detail }}{% endif %}</li>

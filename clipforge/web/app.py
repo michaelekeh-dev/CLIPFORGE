@@ -357,7 +357,7 @@ def status_info() -> dict:
         "have": {"anthropic": bool(env("ANTHROPIC_API_KEY")), "cookies": bool(env("YTDLP_COOKIES") or env("YTDLP_COOKIES_B64")), "pexels": bool(env("PEXELS_API_KEY")),
                  "hf": bool(env("HF_TOKEN")), "password": bool(env("APP_PASSWORD"))},
         "delete_days": cfg.get("app.delete_sources_after_days", 7), "errors": errors, "build": _build_id(),
-        "pot": download.pot_provider_status(), "js": download.js_solver_status(), "proxy": bool(download.proxy_url()),
+        "pot": download.pot_provider_status(), "js": download.js_solver_status(), "proxy": download.proxy_status(),
     }
 
 
@@ -369,7 +369,7 @@ def status_page(request: Request, check: str = "", msg: str = ""):
             result = download.diagnose(check.strip())
         except Exception as e:  # noqa: BLE001
             result = {"verdict": f"The check itself failed: {e}", "clients": [], "formats": [], "url": check,
-                      "pot": download.pot_provider_status(), "js": download.js_solver_status(), "proxy": bool(download.proxy_url()),
+                      "pot": download.pot_provider_status(), "js": download.js_solver_status(), "proxy": download.proxy_status(),
                       "cookies": bool(download._cookie_file()), "warnings": []}
     return page(request, "status.html", st=status_info(), check=check, result=result, msg=msg,
                 store=pipeline.storage_breakdown())

@@ -48,7 +48,10 @@ Same app, no server to manage. About $10 to $15 a month depending on how much yo
 
    **If YouTube still refuses with everything set up**, its block is on the server's IP address, which is normal for
    cloud hosts. Two ways through:
-   - `YTDLP_PROXY` = a residential proxy, e.g. `http://user:pass@host:port`. Only YouTube's small API calls go
+   - `YTDLP_PROXY` = a residential proxy, e.g. `http://user:pass@host:port`. Buy credit once, do not take a monthly
+     plan: because only the API calls go through it, one gigabyte lasts months. Providers that sell non-expiring
+     credit suit this best. After setting it, the Status page shows whether the proxy works and which address
+     YouTube sees. Only YouTube's small API calls go
      through it; the video file itself comes straight from Google's servers, which do not check the address. That
      keeps a pay-per-gigabyte proxy at a few pennies a month instead of a few euros an episode. Any HTTP proxy
      works; residential or mobile ones are the kind that YouTube trusts. (To force everything through the proxy,
