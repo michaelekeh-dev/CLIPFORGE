@@ -43,8 +43,14 @@ def _housekeeping():
 
 @app.on_event("startup")
 def _on_startup():
-    _housekeeping()
-    autopilot.start_threads()
+    try:
+        _housekeeping()
+    except Exception as e:  # noqa: BLE001
+        db.log_error("startup", str(e))
+    try:
+        autopilot.start_threads()
+    except Exception as e:  # noqa: BLE001
+        db.log_error("startup", str(e))
 
 SESSION_DAYS = 30
 
@@ -368,7 +374,8 @@ def autopilot_page(request: Request, msg: str = ""):
     seen = db.rows("SELECT * FROM seen_videos ORDER BY seen_at DESC LIMIT 10")
     return page(request, "autopilot.html", st=st, posts=posts, seen=seen, msg=msg,
                 yt={"configured": youtube.configured(), "connected": youtube.connected(), "channel": db.get_setting("youtube_channel") or {}},
-                tg={"enabled": notify.enabled(), "chat": bool(notify.chat_id())}, public_url=autopilot.base_url())
+                tg={"enabled": notify.enabled(), "chat": bool(notify.chat_id()), **notify.state,
+                    "chat_id": notify.chat_id() or ""}, public_url=autopilot.base_url())
 
 
 @app.post("/api/autopilot")

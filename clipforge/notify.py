@@ -8,7 +8,11 @@ import httpx
 from . import db
 from .config import env
 
-API = "https://api.telegram.org/bot{token}/{method}"
+API_BASE = env("TELEGRAM_API_BASE") or "https://api.telegram.org"
+API = "{base}/bot{token}/{method}"
+
+# what the listener is doing, shown on the Autopilot page
+state: dict = {"running": False, "last_ok": 0.0, "last_error": "", "updates": 0, "bot": "", "backoff": 0}
 
 
 def enabled() -> bool:
@@ -24,19 +28,34 @@ def _call(method: str, timeout: float = 30, **data):
     if "timeout_" in data:  # long polling: Telegram's own timeout parameter
         data.pop("timeout_")
         data["timeout"] = 50
-    url = API.format(token=env("TELEGRAM_BOT_TOKEN"), method=method)
+    url = API.format(base=env("TELEGRAM_API_BASE") or API_BASE, token=env("TELEGRAM_BOT_TOKEN"), method=method)
     try:
         if files:
             r = httpx.post(url, data=data, files=files, timeout=timeout)
         else:
             r = httpx.post(url, json=data, timeout=timeout)
         out = r.json()
-        if not out.get("ok"):
+        if out.get("ok"):
+            state["last_ok"] = time.time()
+        else:
+            state["last_error"] = f"{method}: {str(out)[:200]}"
             db.log_error("telegram", f"{method}: {out}")
         return out
     except Exception as e:  # noqa: BLE001
+        state["last_error"] = f"{method}: {str(e)[:200]}"
         db.log_error("telegram", f"{method}: {e}")
         return {"ok": False, "error": str(e)}
+
+
+def whoami() -> dict:
+    """The bot's own name, and a quick check that the token works."""
+    if not enabled():
+        return {}
+    out = _call("getMe", timeout=15)
+    if out.get("ok"):
+        state["bot"] = out["result"].get("username", "")
+        return out["result"]
+    return {}
 
 
 def send_text(text: str, chat: str | None = None, buttons: list[list[dict]] | None = None) -> dict:
@@ -169,16 +188,26 @@ def handle_update(u: dict, base_url: str):
 def run_poller(base_url_fn):
     """Long-poll Telegram for button taps and commands. Runs forever in a thread."""
     offset = int(db.get_setting("telegram_offset", 0) or 0)
+    said_hello = False
     while True:
         if not enabled():
-            time.sleep(30)
+            state["running"] = False
+            time.sleep(20)
             continue
+        state["running"] = True
+        if not said_hello:
+            whoami()
+            said_hello = True
         out = _call("getUpdates", timeout=70, offset=offset, timeout_=None, allowed_updates=["message", "callback_query"])
         if not out.get("ok"):
-            time.sleep(10)
+            # back off a little, but recover quickly when Telegram comes back
+            state["backoff"] = min(30, state.get("backoff", 0) + 3)
+            time.sleep(state["backoff"])
             continue
+        state["backoff"] = 0
         for u in out.get("result", []):
             offset = u["update_id"] + 1
+            state["updates"] += 1
             try:
                 handle_update(u, base_url_fn())
             except Exception as e:  # noqa: BLE001
@@ -187,8 +216,10 @@ def run_poller(base_url_fn):
 
 
 def start_poller(base_url_fn):
-    if enabled():
-        threading.Thread(target=run_poller, args=(base_url_fn,), daemon=True, name="telegram").start()
+    """Always start the listener: it waits quietly until a bot token appears, so adding the token later just works."""
+    if any(t.name == "telegram" for t in threading.enumerate()):
+        return
+    threading.Thread(target=run_poller, args=(base_url_fn,), daemon=True, name="telegram").start()
 
 
 def _esc(t: str) -> str:

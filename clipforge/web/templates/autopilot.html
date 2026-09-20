@@ -10,8 +10,9 @@
   <h3>Connections</h3>
   <ul class="plain">
     <li>{{ '🟢' if tg.enabled and tg.chat else ('🟡' if tg.enabled else '🔴') }} <b>Telegram</b>:
-      {% if not tg.enabled %}add <code>TELEGRAM_BOT_TOKEN</code> (see DEPLOY.md){% elif not tg.chat %}bot token set, now open your bot in Telegram and send <code>/start</code>{% else %}linked
-      <form method="post" action="/api/autopilot/test-telegram" style="display:inline"><button class="btn secondary small">Send a test message</button></form>{% endif %}</li>
+      {% if not tg.enabled %}add <code>TELEGRAM_BOT_TOKEN</code> (see DEPLOY.md){% elif not tg.chat %}bot token set{% if tg.bot %} (@{{ tg.bot }}){% endif %}, now open your bot in Telegram and send <code>/start</code>{% else %}linked{% if tg.bot %} to @{{ tg.bot }}{% endif %}
+      <form method="post" action="/api/autopilot/test-telegram" style="display:inline"><button class="btn secondary small">Send a test message</button></form>{% endif %}
+      {% if tg.enabled %}<div class="muted small">listener: {{ 'running' if tg.running else 'not running' }} · {{ tg.updates }} messages seen{% if tg.last_error %} · last problem: {{ tg.last_error }}{% endif %}</div>{% endif %}</li>
     <li>{{ '🟢' if yt.connected else ('🟡' if yt.configured else '🔴') }} <b>YouTube</b>:
       {% if yt.connected %}connected to <b>{{ yt.channel.title }}</b> {{ yt.channel.handle }}
       <form method="post" action="/api/youtube/disconnect" style="display:inline"><button class="btn danger small">Disconnect</button></form>
