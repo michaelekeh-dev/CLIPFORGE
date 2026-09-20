@@ -6,7 +6,7 @@ import re
 import shutil
 import time
 from pathlib import Path
-from . import media
+from . import media, db
 from .config import CACHE, cfg, env
 
 DL_DIR = CACHE / "downloads"
@@ -20,9 +20,12 @@ def is_url(s: str) -> bool:
     return bool(re.match(r"^https?://", s.strip(), re.I))
 
 
-BLOCK_HINTS = ("sign in to confirm", "page needs to be reloaded", "not a bot", "403", "forbidden", "unable to download", "login required",
+# messages that mean "YouTube refused us", as opposed to an ordinary failure
+BLOCK_HINTS = ("sign in to confirm", "page needs to be reloaded", "not a bot", "403", "forbidden", "login required",
                "private video", "this video is unavailable", "blocked", "captcha", "429", "too many requests",
-               "requested format is not available", "unable to extract")
+               "unable to extract")
+# a format problem is not a block: the client let us in but offered nothing matching the rule
+FORMAT_HINTS = ("requested format is not available", "no video formats found", "no formats found")
 
 
 def _cookie_file() -> str | None:
@@ -58,7 +61,7 @@ def download(url: str, progress=None) -> dict:
 
     max_h = int(cfg.get("download.max_height", 1080))
     fmt = (f"bv*[height<={max_h}][ext=mp4]+ba[ext=m4a]/bv*[height<={max_h}]+ba/"
-           f"b[height<={max_h}][ext=mp4]/b[height<={max_h}]/b")
+           f"b[height<={max_h}][ext=mp4]/b[height<={max_h}]/bv*+ba/b/best")
 
     def hook(d):
         if progress and d.get("status") == "downloading":
@@ -126,25 +129,35 @@ def download(url: str, progress=None) -> dict:
         meta_path.write_text(json.dumps(meta))
         return meta
 
-    last = None
-    # each attempt tries a different YouTube player client; the challenge usually hits only some of them
+    # each attempt tries a different YouTube player client; a challenge usually hits only some of them
     clients = [None, ["tv"], ["mweb"], ["web_safari"], ["android_vr"]]
-    for attempt, client in enumerate(clients[:max(2, int(cfg.get("download.retries", 3)) + 2)]):
+    attempts: list[tuple[str, Exception]] = []
+    ok = False
+    for attempt, client in enumerate(clients):
         o = dict(opts)
+        name = client[0] if client else "default"
         if client:
             o["extractor_args"] = {**xargs, "youtube": {"player_client": client}}
             if client == ["android_vr"]:
                 o.pop("cookiefile", None)  # this client refuses cookies
-        try:
-            with yt_dlp.YoutubeDL(o) as ydl:
-                ydl.download([url])
-            last = None
+        for relaxed in (False, True):
+            if relaxed:
+                o = {**o, "format": "best", "merge_output_format": None}
+            try:
+                with yt_dlp.YoutubeDL(o) as ydl:
+                    ydl.download([url])
+                ok = True
+                break
+            except Exception as e:  # noqa: BLE001
+                attempts.append((name + (" (any format)" if relaxed else ""), e))
+                if not (not relaxed and _is_format_problem(e)):
+                    break  # only a format problem is worth an immediate retry on the same client
+        if ok:
             break
-        except Exception as e:  # noqa: BLE001
-            last = e
-            time.sleep(1.5 * (attempt + 1))
-    if last is not None:
-        raise _classify(last)
+        time.sleep(1.0 * (attempt + 1))
+    if not ok:
+        db.log_error("download", "; ".join(f"{n}: {str(e)[:200]}" for n, e in attempts))
+        raise _classify(_best_error(attempts))
 
     files = sorted(DL_DIR.glob(f"{vid}.*"), key=lambda p: p.stat().st_size, reverse=True)
     files = [f for f in files if f.suffix.lower() in (".mp4", ".mkv", ".webm", ".mov")]
@@ -160,15 +173,38 @@ def download(url: str, progress=None) -> dict:
     return meta
 
 
+def _is_format_problem(e: Exception) -> bool:
+    low = str(e).lower()
+    return any(h in low for h in FORMAT_HINTS)
+
+
+def _best_error(attempts: list) -> Exception:
+    """The most useful failure to show: a real refusal beats a format complaint, which beats anything else."""
+    if not attempts:
+        return RuntimeError("download failed")
+    for _, e in attempts:
+        if any(h in str(e).lower() for h in BLOCK_HINTS):
+            return e
+    for _, e in attempts:
+        if not _is_format_problem(e):
+            return e
+    return attempts[-1][1]
+
+
 def _classify(e: Exception) -> Exception:
     msg = str(e)
     low = msg.lower()
     reason = re.sub(r"\s+", " ", msg.replace("ERROR:", "").strip())[:260]
     have_cookies = bool(_cookie_file())
+    if _is_format_problem(e):
+        return DownloadBlocked(
+            "YouTube let us in but offered no video we could use for this one. It is usually a live stream, a members-only "
+            f"video, or one that is still processing. Try another episode or upload the file instead. (yt-dlp said: {reason})")
     if any(h in low for h in BLOCK_HINTS):
-        tip = ("Cookies are set but YouTube still refused. Export fresh cookies from a logged-in spare account and try again, "
+        pot = " The token helper is set." if env("POT_PROVIDER_URL") else " Adding the token helper (POT_PROVIDER_URL, see DEPLOY.md) usually fixes this."
+        tip = ("Cookies are set but YouTube still refused." + pot + " Export fresh cookies from a logged-in spare account and try again, "
                "or upload the video file instead." if have_cookies else
-               "Add a cookies file (YTDLP_COOKIES or YTDLP_COOKIES_B64, see DEPLOY.md) or upload the video file instead.")
+               "Add a cookies file (YTDLP_COOKIES_B64, see DEPLOY.md) or upload the video file instead.")
         return DownloadBlocked(f"YouTube blocked the download from this server. {tip} (yt-dlp said: {reason})")
     return DownloadBlocked(f"Could not download the video. You can upload the file instead. (yt-dlp said: {reason})")
 
