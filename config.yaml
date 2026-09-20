@@ -14,6 +14,8 @@ app:
 
 download:
   max_height: 1080
+  # Solver components yt-dlp may fetch when the bundled ones are too old. Empty list = never fetch.
+  remote_components: [ejs:github, ejs:npm]
   retries: 3
   # Seconds a download may take before it is treated as blocked
   timeout: 1800

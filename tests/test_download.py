@@ -25,6 +25,8 @@ class FakeYDL:
         ex = self.opts.get("extractor_args") or {}
         yt = ex.get("youtube") or {}
         c = (yt.get("player_client") or ["default"])[0]
+        if not self.opts.get("cookiefile"):
+            c += " without cookies"
         return c + (" (any format)" if self.opts.get("format") == "best" else "")
 
     def extract_info(self, url, download=False):
@@ -52,35 +54,70 @@ def fake_ytdlp(monkeypatch, tmp_path):
 
 BOT = "ERROR: [youtube] vid123: Sign in to confirm you're not a bot."
 FMT = "ERROR: [youtube] vid123: Requested format is not available."
+DEAD_COOKIES = ("ERROR: The provided YouTube account cookies are no longer valid. "
+                "They have likely been rotated in the browser as a security measure.")
+
+
+@pytest.fixture()
+def with_cookies(monkeypatch, tmp_path):
+    ck = tmp_path / "cookies.txt"
+    ck.write_text("# Netscape HTTP Cookie File\n")
+    monkeypatch.setattr(d, "_cookie_file", lambda: str(ck))
+    return str(ck)
+
+
+def test_rotated_cookies_are_dropped_and_the_download_still_works(fake_ytdlp, with_cookies):
+    FakeYDL.script = {"default": DEAD_COOKIES}
+    meta = d.download("https://youtu.be/vid123")
+    assert FakeYDL.attempts == ["default", "default without cookies"] and meta["path"]
+
+
+def test_once_cookies_prove_dead_later_clients_skip_them(fake_ytdlp, with_cookies):
+    FakeYDL.script = {"default": DEAD_COOKIES, "default without cookies": BOT, "tv without cookies": BOT}
+    d.download("https://youtu.be/vid123")
+    assert FakeYDL.attempts == ["default", "default without cookies", "tv without cookies", "mweb without cookies"]
+    assert not any(a in ("tv", "mweb") for a in FakeYDL.attempts)
+
+
+def test_good_cookies_are_used_first(fake_ytdlp, with_cookies):
+    meta = d.download("https://youtu.be/vid123")
+    assert FakeYDL.attempts == ["default"] and meta["path"]
+
+
+def test_the_message_names_a_missing_js_solver(monkeypatch):
+    monkeypatch.setattr(d, "js_solver_status", lambda: {"runtime": "", "ejs": "", "ok": False, "remote": []})
+    msg = str(d._classify(Exception(FMT)))
+    assert "JavaScript challenge" in msg and "deno" in msg
 
 
 def test_first_client_wins_without_extra_attempts(fake_ytdlp):
     meta = d.download("https://youtu.be/vid123")
     assert meta["title"] == "Episode" and meta["path"].endswith("vid123.mp4")
-    assert FakeYDL.attempts == ["default"]
+    assert FakeYDL.attempts == ["default without cookies"]  # no cookies configured in this test
 
 
 def test_falls_through_clients_until_one_works(fake_ytdlp):
-    FakeYDL.script = {"default": BOT, "tv": BOT}
+    FakeYDL.script = {"default without cookies": BOT, "tv without cookies": BOT}
     meta = d.download("https://youtu.be/vid123")
-    assert FakeYDL.attempts == ["default", "tv", "mweb"] and meta["path"]
+    assert FakeYDL.attempts == ["default without cookies", "tv without cookies", "mweb without cookies"]
+    assert meta["path"]
 
 
 def test_a_format_problem_retries_the_same_client_with_any_format(fake_ytdlp):
-    FakeYDL.script = {"default": FMT}
+    FakeYDL.script = {"default without cookies": FMT}
     meta = d.download("https://youtu.be/vid123")
-    assert FakeYDL.attempts == ["default", "default (any format)"] and meta["path"]
+    assert FakeYDL.attempts == ["default without cookies", "default without cookies (any format)"] and meta["path"]
 
 
 def test_a_refusal_does_not_retry_the_same_client(fake_ytdlp):
-    FakeYDL.script = {"default": BOT}
+    FakeYDL.script = {"default without cookies": BOT}
     d.download("https://youtu.be/vid123")
-    assert "default (any format)" not in FakeYDL.attempts
+    assert not any("any format" in a for a in FakeYDL.attempts)
 
 
 def test_when_everything_fails_the_refusal_is_reported_not_the_format(fake_ytdlp):
-    FakeYDL.script = {c: (FMT if c.startswith("android_vr") else BOT) for c in
-                      ["default", "tv", "mweb", "web_safari", "android_vr", "android_vr (any format)"]}
+    FakeYDL.script = {c + " without cookies" + suffix: (FMT if c == "android_vr" else BOT)
+                      for c in ["default", "tv", "mweb", "web_safari", "android_vr"] for suffix in ("", " (any format)")}
     FakeYDL.made_file = None
     with pytest.raises(d.DownloadBlocked) as err:
         d.download("https://youtu.be/vid123")
@@ -89,9 +126,8 @@ def test_when_everything_fails_the_refusal_is_reported_not_the_format(fake_ytdlp
 
 
 def test_a_pure_format_problem_says_so_plainly(fake_ytdlp):
-    FakeYDL.script = {c: FMT for c in ["default", "tv", "mweb", "web_safari", "android_vr",
-                                       "default (any format)", "tv (any format)", "mweb (any format)",
-                                       "web_safari (any format)", "android_vr (any format)"]}
+    FakeYDL.script = {c + " without cookies" + suffix: FMT
+                      for c in ["default", "tv", "mweb", "web_safari", "android_vr"] for suffix in ("", " (any format)")}
     FakeYDL.made_file = None
     with pytest.raises(d.DownloadBlocked) as err:
         d.download("https://youtu.be/vid123")

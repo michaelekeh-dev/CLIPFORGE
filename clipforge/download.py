@@ -25,7 +25,10 @@ BLOCK_HINTS = ("sign in to confirm", "page needs to be reloaded", "not a bot", "
                "private video", "this video is unavailable", "blocked", "captcha", "429", "too many requests",
                "unable to extract")
 # a format problem is not a block: the client let us in but offered nothing matching the rule
-FORMAT_HINTS = ("requested format is not available", "no video formats found", "no formats found")
+FORMAT_HINTS = ("requested format is not available", "no video formats found", "no formats found",
+                "only images are available")
+# cookies that YouTube has rotated out from under us: they make things worse, not better
+COOKIE_DEAD_HINTS = ("cookies are no longer valid", "have likely been rotated", "cookies have been rotated")
 
 
 def _cookie_file() -> str | None:
@@ -86,11 +89,7 @@ def download(url: str, progress=None) -> dict:
     ck = _cookie_file()
     if ck:
         opts["cookiefile"] = ck
-    # yt-dlp can solve YouTube's JS challenges when a JS runtime is present
-    for rt in ("deno", "node"):
-        if shutil.which(rt):
-            opts["js_runtimes"] = {rt: {}}
-            break
+    opts.update(_js_opts())
     # proof-of-origin tokens from the bgutil helper (POT_PROVIDER_URL=http://host:4416) let server IPs through
     xargs = {}
     pot = env("POT_PROVIDER_URL")
@@ -132,29 +131,41 @@ def download(url: str, progress=None) -> dict:
     # each attempt tries a different YouTube player client; a challenge usually hits only some of them
     clients = [None, ["tv"], ["mweb"], ["web_safari"], ["android_vr"]]
     attempts: list[tuple[str, Exception]] = []
+    cookies_ok = bool(ck)
     ok = False
-    for attempt, client in enumerate(clients):
-        o = dict(opts)
+    for i, client in enumerate(clients):
+        base = dict(opts)
         name = client[0] if client else "default"
         if client:
-            o["extractor_args"] = {**xargs, "youtube": {"player_client": client}}
-            if client == ["android_vr"]:
-                o.pop("cookiefile", None)  # this client refuses cookies
-        for relaxed in (False, True):
-            if relaxed:
-                o = {**o, "format": "best", "merge_output_format": None}
-            try:
-                with yt_dlp.YoutubeDL(o) as ydl:
-                    ydl.download([url])
-                ok = True
+            base["extractor_args"] = {**xargs, "youtube": {"player_client": client}}
+        if client == ["android_vr"]:
+            base.pop("cookiefile", None)  # this client refuses cookies
+        # with cookies first (when we still trust them), then without: rotated cookies break downloads
+        cookie_modes = [True, False] if (cookies_ok and base.get("cookiefile")) else [False]
+        for use_cookies in cookie_modes:
+            o = dict(base)
+            if not use_cookies:
+                o.pop("cookiefile", None)
+            label = name + ("" if use_cookies else " without cookies")
+            for relaxed in (False, True):
+                if relaxed:
+                    o = {**o, "format": "best", "merge_output_format": None}
+                try:
+                    with yt_dlp.YoutubeDL(o) as ydl:
+                        ydl.download([url])
+                    ok = True
+                    break
+                except Exception as e:  # noqa: BLE001
+                    attempts.append((label + (" (any format)" if relaxed else ""), e))
+                    if _cookies_are_dead(e):
+                        cookies_ok = False
+                    if not (not relaxed and _is_format_problem(e)):
+                        break  # only a format problem is worth an immediate retry on the same client
+            if ok:
                 break
-            except Exception as e:  # noqa: BLE001
-                attempts.append((name + (" (any format)" if relaxed else ""), e))
-                if not (not relaxed and _is_format_problem(e)):
-                    break  # only a format problem is worth an immediate retry on the same client
         if ok:
             break
-        time.sleep(1.0 * (attempt + 1))
+        time.sleep(1.0 * (i + 1))
     if not ok:
         db.log_error("download", "; ".join(f"{n}: {str(e)[:200]}" for n, e in attempts))
         raise _classify(_best_error(attempts))
@@ -247,27 +258,26 @@ def diagnose(url: str) -> dict:
     """What the server can actually see for this link: cookies, token helper, and the formats offered."""
     import yt_dlp
     ck = _cookie_file()
-    res = {"url": url, "cookies": bool(ck), "pot": pot_provider_status(), "clients": [], "formats": [], "title": "",
-           "warnings": []}
+    res = {"url": url, "cookies": bool(ck), "pot": pot_provider_status(), "js": js_solver_status(), "clients": [],
+           "formats": [], "title": "", "warnings": []}
     xargs = {}
     pot = env("POT_PROVIDER_URL")
     if pot:
         xargs["youtubepot-bgutilhttp"] = {"base_url": [pot.rstrip("/")]}
-    for client in (None, ["tv"], ["mweb"], ["web_safari"], ["android_vr"]):
+    plans = [(None, True), (["tv"], True), (None, False), (["tv"], False), (["mweb"], True), (["web_safari"], True), (["android_vr"], False)]
+    if not ck:
+        plans = [(c, False) for c, _ in plans if not (c is None and _ is False)] or [(None, False)]
+    for client, use_cookies in plans:
         log = _Collect()
-        o = {"quiet": True, "no_warnings": False, "skip_download": True, "noplaylist": True, "logger": log}
-        if ck and client != ["android_vr"]:
+        o = {"quiet": True, "no_warnings": False, "skip_download": True, "noplaylist": True, "logger": log, **_js_opts()}
+        if ck and use_cookies:
             o["cookiefile"] = ck
         ea = dict(xargs)
         if client:
             ea["youtube"] = {"player_client": client}
         if ea:
             o["extractor_args"] = ea
-        for rt in ("deno", "node"):
-            if shutil.which(rt):
-                o["js_runtimes"] = {rt: {}}
-                break
-        name = client[0] if client else "default"
+        name = (client[0] if client else "default") + ("" if use_cookies else " without cookies")
         try:
             with yt_dlp.YoutubeDL(o) as ydl:
                 info = ydl.extract_info(url, download=False)
@@ -297,7 +307,18 @@ def _short_error(e: Exception) -> str:
 def _verdict(res: dict) -> str:
     good = [c for c in res["clients"] if c.get("ok") and c.get("video_formats")]
     if good:
-        return f"Downloads should work: {good[0]['client']} offers {good[0]['video_formats']} video formats up to {good[0]['best']}p."
+        extra = ""
+        if "without cookies" in good[0]["client"] and res.get("cookies"):
+            extra = " Your saved cookies are getting in the way: remove YTDLP_COOKIES_B64 and links will work."
+        return (f"Downloads should work: {good[0]['client']} offers {good[0]['video_formats']} video formats "
+                f"up to {good[0]['best']}p.{extra}")
+    if not res.get("js", {}).get("ok"):
+        js = res.get("js", {})
+        miss = "no JavaScript runtime (deno) in this build" if not js.get("runtime") else "the yt-dlp-ejs solver package is missing"
+        return f"YouTube's JavaScript challenge cannot be solved here: {miss}. Redeploy so the image installs it."
+    if any(_cookies_are_dead(Exception(w)) for w in res.get("warnings", [])):
+        return ("Your saved YouTube cookies have been rotated and now block downloads. Remove YTDLP_COOKIES_B64 "
+                "(with the token helper and solver in place, cookies are usually not needed) or export fresh ones.")
     saw_sabr = any("sabr" in w.lower() or "missing a url" in w.lower() for w in res["warnings"])
     if not res["pot"]["set"]:
         return ("No formats came back and the token helper is not set. Add the bgutil service and POT_PROVIDER_URL "
@@ -318,6 +339,11 @@ def _is_format_problem(e: Exception) -> bool:
     return any(h in low for h in FORMAT_HINTS)
 
 
+def _cookies_are_dead(e: Exception) -> bool:
+    low = str(e).lower()
+    return any(h in low for h in COOKIE_DEAD_HINTS)
+
+
 def _best_error(attempts: list) -> Exception:
     """The most useful failure to show: a real refusal beats a format complaint, which beats anything else."""
     if not attempts:
@@ -331,15 +357,52 @@ def _best_error(attempts: list) -> Exception:
     return attempts[-1][1]
 
 
+def _js_opts() -> dict:
+    """YouTube hides its streams behind a JavaScript challenge. Solving it needs a JS runtime plus the
+    solver scripts (the yt-dlp-ejs package ships them; 'remote components' is the fallback)."""
+    out: dict = {}
+    for rt in ("deno", "node", "bun"):
+        if shutil.which(rt):
+            out["js_runtimes"] = {rt: {}}
+            break
+    allow = cfg.get("download.remote_components", ["ejs:github", "ejs:npm"])
+    if allow:
+        out["remote_components"] = list(allow)
+    return out
+
+
+def js_solver_status() -> dict:
+    """Can this server solve YouTube's JS challenge?"""
+    rt = next((r for r in ("deno", "node", "bun") if shutil.which(r)), "")
+    try:
+        import importlib.metadata as md
+        ejs = md.version("yt-dlp-ejs")
+    except Exception:  # noqa: BLE001
+        ejs = ""
+    return {"runtime": rt, "ejs": ejs, "ok": bool(rt) and bool(ejs),
+            "remote": list(cfg.get("download.remote_components", []) or [])}
+
+
 def _classify(e: Exception) -> Exception:
     msg = str(e)
     low = msg.lower()
     reason = re.sub(r"\s+", " ", msg.replace("ERROR:", "").strip())[:260]
     have_cookies = bool(_cookie_file())
+    js = js_solver_status()
+    if _cookies_are_dead(e):
+        return DownloadBlocked(
+            "Your saved YouTube cookies have been rotated by YouTube and no longer work. Either export fresh ones "
+            "(from a private window, then close it straight away) or simply remove YTDLP_COOKIES_B64: with the token "
+            f"helper and the challenge solver in place, downloads usually work without cookies. (yt-dlp said: {reason})")
     if _is_format_problem(e):
+        if not js["ok"]:
+            missing = "a JavaScript runtime (deno)" if not js["runtime"] else "the yt-dlp-ejs solver package"
+            return DownloadBlocked(
+                f"YouTube held back every video stream because this server cannot solve its JavaScript challenge: "
+                f"{missing} is missing. Redeploy so the image installs it. (yt-dlp said: {reason})")
         return DownloadBlocked(
             "YouTube answered but held back every video stream. Open the Status page and run 'Check a YouTube link' "
-            "on this URL: it says whether the token helper is reachable and what YouTube offered. "
+            "on this URL: it says whether the token helper and the challenge solver are working. "
             f"Uploading the file always works. (yt-dlp said: {reason})")
     if any(h in low for h in BLOCK_HINTS):
         pot = " The token helper is set." if env("POT_PROVIDER_URL") else " Adding the token helper (POT_PROVIDER_URL, see DEPLOY.md) usually fixes this."

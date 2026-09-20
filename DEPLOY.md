@@ -41,6 +41,10 @@ Same app, no server to manage. About $10 to $15 a month depending on how much yo
    - Open that new service → **Settings** → rename it `bgutil` (its private host becomes `bgutil.railway.internal`).
    - Back in the CLIPFORGE service → Variables → add `POT_PROVIDER_URL` = `http://bgutil.railway.internal:4416` → deploy.
    It costs a few cents a month; it only runs when a download asks it for a token.
+   The image also ships a JavaScript runtime (deno) and the `yt-dlp-ejs` solver, which YouTube's challenge needs.
+   **Cookies are optional and often harmful**: YouTube rotates them, and rotated cookies block downloads. Start with
+   no `YTDLP_COOKIES_B64` at all. If a link fails, open **Status → Check a YouTube link**: it says per client what
+   came back and names the one thing to fix.
 7. Updates: every `git push` redeploys. Logs are in the **Deployments** tab. Restarts on crash are on by default.
 
 Keep the service on the Hobby plan or higher (8 GB RAM); the speech model needs about 3 GB while transcribing.
