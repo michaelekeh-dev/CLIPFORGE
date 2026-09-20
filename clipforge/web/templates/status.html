@@ -13,7 +13,9 @@
 <section class="card">
   <h3>Keys</h3>
   <ul class="plain">
-    <li>{{ '🟢' if st.have.anthropic else '🔴' }} Anthropic key {{ '' if st.have.anthropic else '(clips are picked by a keyword rule until you add it)' }}</li>
+    <li>{{ '🟢' if st.have.anthropic else '🔴' }} Anthropic key {{ '' if st.have.anthropic else '(clips are picked by a keyword rule until you add it)' }}
+      {%- if st.have.workspace %} · workspace ID set{% endif %}
+      <a class="muted small" href="/status?claude=1">test it</a></li>
     <li>{{ '🟢' if st.have.cookies else '🟡' }} YouTube cookies {{ '' if st.have.cookies else '(YouTube may block downloads from this server; upload files if it does)' }}</li>
     <li>{{ '🟢' if st.have.pexels else '🟡' }} Pexels key {{ '' if st.have.pexels else '(no B-roll)' }}</li>
     <li>{{ '🟢' if st.have.hf else '🟡' }} Hugging Face token {{ '' if st.have.hf else '(speaker detection uses lip movement)' }}</li>
@@ -46,6 +48,16 @@
   </div>
   <p class="muted small">Your clips and transcripts survive all of these. Deleting source videos only means a clip cannot be
     re-rendered later without uploading the episode again.</p>
+</section>
+<section class="card">
+  <h3>Claude</h3>
+  <p class="muted small">Claude picks the moments, writes the titles and hooks, and does the fact check. When it cannot be
+    reached, CLIPFORGE falls back to a keyword rule and the titles get boring.</p>
+  <form method="get" action="/status"><input type="hidden" name="claude" value="1">
+    <button class="btn primary" type="submit">Test my Claude key</button></form>
+  {% if claude_result %}
+  <div class="notice" style="margin-top:12px">{{ '🟢' if claude_result.ok else '🔴' }} {{ claude_result.detail }}</div>
+  {% endif %}
 </section>
 <section class="card">
   <h3>Check a YouTube link</h3>

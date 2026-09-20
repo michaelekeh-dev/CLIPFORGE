@@ -29,6 +29,7 @@ Same app, no server to manage. About $10 to $15 a month depending on how much yo
 
 1. Push this repo to GitHub (it is already there) and open https://railway.app → **New Project** → **Deploy from GitHub repo** → pick `clipforge`. Railway finds the `Dockerfile` and builds it (5 to 10 minutes the first time).
 2. In the service, open **Variables** and add: `APP_PASSWORD`, `ANTHROPIC_API_KEY`, `APP_HTTPS=1`, `CLIPFORGE_DATA_DIR=/data`, and optionally `PEXELS_API_KEY`, `HF_TOKEN`, `YTDLP_COOKIES=/data/cookies.txt`.
+   If Claude replies *"this API key is not scoped to a workspace"*, either make a new key inside a workspace at console.anthropic.com, or add `ANTHROPIC_WORKSPACE_ID` with that workspace's ID. **Status → Claude → Test my Claude key** tells you which it is.
 3. Open **Settings** → **Volumes** → **Add volume**, mount path `/data`, size 20 GB or more (source videos are big; they are deleted after 7 days).
 4. **Settings** → **Networking** → **Generate domain**. Open it on your phone, log in, add to home screen.
 5. Cookies: turn the exported `youtube.com_cookies.txt` into one line and paste it as the variable `YTDLP_COOKIES_B64`:

@@ -9,7 +9,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse, File
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from itsdangerous import URLSafeTimedSerializer, BadSignature
-from .. import db, pipeline, factcheck, captions, brand, autopilot, youtube, notify, download
+from .. import db, pipeline, factcheck, captions, brand, autopilot, youtube, notify, download, llm
 from ..config import cfg, env, PROJECTS, UPLOADS, ROOT, CACHE, device
 from ..jobs import runner
 from .. import __version__
@@ -354,7 +354,7 @@ def status_info() -> dict:
         "projects": (db.row("SELECT COUNT(*) AS n FROM projects") or {}).get("n", 0),
         "clips": (db.row("SELECT COUNT(*) AS n FROM clips WHERE status='done'") or {}).get("n", 0),
         "device": device(), "cpus": os.cpu_count(), "transcriber": transcribe.choose_backend(),
-        "have": {"anthropic": bool(env("ANTHROPIC_API_KEY")), "cookies": bool(env("YTDLP_COOKIES") or env("YTDLP_COOKIES_B64")), "pexels": bool(env("PEXELS_API_KEY")),
+        "have": {"anthropic": bool(env("ANTHROPIC_API_KEY")), "workspace": bool(llm.workspace_id()), "cookies": bool(env("YTDLP_COOKIES") or env("YTDLP_COOKIES_B64")), "pexels": bool(env("PEXELS_API_KEY")),
                  "hf": bool(env("HF_TOKEN")), "password": bool(env("APP_PASSWORD"))},
         "delete_days": cfg.get("app.delete_sources_after_days", 7), "errors": errors, "build": _build_id(),
         "pot": download.pot_provider_status(), "js": download.js_solver_status(), "proxy": download.proxy_status(),
@@ -362,8 +362,9 @@ def status_info() -> dict:
 
 
 @app.get("/status", response_class=HTMLResponse)
-def status_page(request: Request, check: str = "", msg: str = ""):
+def status_page(request: Request, check: str = "", msg: str = "", claude: str = ""):
     result = None
+    claude_result = llm.check() if claude else None
     if check.strip():
         try:
             result = download.diagnose(check.strip())
@@ -372,7 +373,7 @@ def status_page(request: Request, check: str = "", msg: str = ""):
                       "pot": download.pot_provider_status(), "js": download.js_solver_status(), "proxy": download.proxy_status(),
                       "cookies": bool(download._cookie_file()), "warnings": []}
     return page(request, "status.html", st=status_info(), check=check, result=result, msg=msg,
-                store=pipeline.storage_breakdown())
+                claude_result=claude_result, store=pipeline.storage_breakdown())
 
 
 @app.get("/api/status")

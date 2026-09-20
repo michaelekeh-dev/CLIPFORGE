@@ -306,7 +306,7 @@ def test_status_and_cleanup(tmp_path):
     from clipforge.web.app import app, status_info
     from clipforge import db, pipeline
     st = status_info()
-    assert set(st["have"]) == {"anthropic", "cookies", "pexels", "hf", "password"} and "storage_gb" in st
+    assert set(st["have"]) == {"anthropic", "workspace", "cookies", "pexels", "hf", "password"} and "storage_gb" in st
     client = TestClient(app)
     assert client.get("/health").status_code == 200
     assert client.get("/manifest.webmanifest").status_code == 200
