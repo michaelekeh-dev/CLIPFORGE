@@ -8,6 +8,7 @@ from clipforge import download as d
 class FakeYDL:
     """Records every attempt and fails according to `script`, keyed by player client name."""
     attempts: list = []
+    probes: list = []
     script: dict = {}
     made_file = None
 
@@ -30,6 +31,10 @@ class FakeYDL:
         return c + (" (any format)" if self.opts.get("format") == "best" else "")
 
     def extract_info(self, url, download=False):
+        FakeYDL.probes.append({"proxy": self.opts.get("proxy"), "client": self._client})
+        err = FakeYDL.script.get("probe " + self._client)
+        if err:
+            raise Exception(err)
         return {"id": "vid123", "title": "Episode", "channel": "Jumpers Jump", "duration": 3600,
                 "thumbnail": "", "webpage_url": url, "upload_date": "20260101"}
 
@@ -58,7 +63,7 @@ def fake_ytdlp(monkeypatch, tmp_path):
     monkeypatch.setattr(yt_dlp, "YoutubeDL", FakeYDL)
     monkeypatch.setattr(d, "DL_DIR", tmp_path)
     monkeypatch.setattr(d.time, "sleep", lambda *_: None)
-    FakeYDL.attempts, FakeYDL.script = [], {}
+    FakeYDL.attempts, FakeYDL.script, FakeYDL.probes = [], {}, []
     FakeYDL.made_file = lambda: (tmp_path / "vid123.mp4").write_bytes(b"video")
     return FakeYDL
 
@@ -160,3 +165,25 @@ def test_address_bound_links_fall_back_to_the_proxy(fake_ytdlp, monkeypatch):
     meta = d.download("https://youtu.be/vid123")
     assert meta["path"]
     assert FakeYDL.attempts[-1] == "default without cookies via proxy"
+
+
+def test_the_page_lookup_also_goes_through_the_proxy(fake_ytdlp, monkeypatch):
+    """The lookup runs first; if it is not proxied it gets blocked and the proxy never gets a turn."""
+    monkeypatch.setenv("YTDLP_PROXY", "http://user:pass@proxy:8080")
+    d.download("https://youtu.be/vid123")
+    assert FakeYDL.probes, "no page lookup happened"
+    assert FakeYDL.probes[0]["proxy"] == "http://user:pass@proxy:8080"
+
+
+def test_a_blocked_page_lookup_retries_other_clients(fake_ytdlp, monkeypatch):
+    monkeypatch.setenv("YTDLP_PROXY", "http://user:pass@proxy:8080")
+    FakeYDL.script = {"probe default without cookies": BOT}
+    meta = d.download("https://youtu.be/vid123")
+    assert meta["path"] and len(FakeYDL.probes) >= 2
+
+
+def test_proxy_url_is_tidied_up(monkeypatch):
+    monkeypatch.setenv("YTDLP_PROXY", "http://u:p@gw.example.com:823/ ")
+    assert d.proxy_url() == "http://u:p@gw.example.com:823"
+    monkeypatch.setenv("YTDLP_PROXY", "gw.example.com:823")
+    assert d.proxy_url() == "http://gw.example.com:823"

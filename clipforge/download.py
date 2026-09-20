@@ -103,11 +103,11 @@ def download(url: str, progress=None) -> dict:
     info = None
     probe_err = None
     for client in (None, ["tv"], ["mweb"]):
-        po = {"quiet": True, "no_warnings": True, "skip_download": True, "noplaylist": True, **({"cookiefile": ck} if ck else {})}
+        # the page lookup needs the same treatment as the download: solver, token helper and proxy
+        po = {"quiet": True, "no_warnings": True, "skip_download": True, "noplaylist": True,
+              **_js_opts(), **_net_opts(), **({"cookiefile": ck} if ck else {})}
         if xargs or client:
             po["extractor_args"] = {**xargs, **({"youtube": {"player_client": client}} if client else {})}
-        if "js_runtimes" in opts:
-            po["js_runtimes"] = opts["js_runtimes"]
         try:
             with yt_dlp.YoutubeDL(po) as ydl:
                 info = ydl.extract_info(url, download=False)
@@ -398,7 +398,10 @@ def _best_error(attempts: list) -> Exception:
 
 def proxy_url() -> str:
     """An optional proxy for YouTube only (YTDLP_PROXY). Datacenter IPs get blocked; a residential proxy fixes it."""
-    return env("YTDLP_PROXY") or env("YOUTUBE_PROXY")
+    p = (env("YTDLP_PROXY") or env("YOUTUBE_PROXY")).strip().rstrip("/")
+    if p and "://" not in p:
+        p = "http://" + p
+    return p
 
 
 def _net_opts() -> dict:
