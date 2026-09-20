@@ -45,6 +45,12 @@ Same app, no server to manage. About $10 to $15 a month depending on how much yo
    **Cookies are optional and often harmful**: YouTube rotates them, and rotated cookies block downloads. Start with
    no `YTDLP_COOKIES_B64` at all. If a link fails, open **Status → Check a YouTube link**: it says per client what
    came back and names the one thing to fix.
+
+   **If YouTube still refuses with everything set up**, its block is on the server's IP address, which is normal for
+   cloud hosts. Two ways through:
+   - `YTDLP_PROXY` = a residential proxy, e.g. `http://user:pass@host:port`. Downloads then look like home traffic.
+     Providers charge roughly 1 to 3 EUR per episode-heavy month at this volume; any proxy that supports HTTP works.
+   - Upload the episode file instead. Everything after the download (clips, Telegram, posting) is identical.
 7. Updates: every `git push` redeploys. Logs are in the **Deployments** tab. Restarts on crash are on by default.
 
 Keep the service on the Hobby plan or higher (8 GB RAM); the speech model needs about 3 GB while transcribing.

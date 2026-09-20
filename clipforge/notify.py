@@ -29,11 +29,13 @@ def _call(method: str, timeout: float = 30, **data):
         data.pop("timeout_")
         data["timeout"] = 50
     url = API.format(base=env("TELEGRAM_API_BASE") or API_BASE, token=env("TELEGRAM_BOT_TOKEN"), method=method)
+    # a long poll may wait a minute for an answer, but a dead connection must fail fast
+    tmo = httpx.Timeout(timeout, connect=10.0)
     try:
         if files:
-            r = httpx.post(url, data=data, files=files, timeout=timeout)
+            r = httpx.post(url, data=data, files=files, timeout=tmo)
         else:
-            r = httpx.post(url, json=data, timeout=timeout)
+            r = httpx.post(url, json=data, timeout=tmo)
         out = r.json()
         if out.get("ok"):
             state["last_ok"] = time.time()

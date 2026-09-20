@@ -90,6 +90,7 @@ def download(url: str, progress=None) -> dict:
     if ck:
         opts["cookiefile"] = ck
     opts.update(_js_opts())
+    opts.update(_net_opts())
     # proof-of-origin tokens from the bgutil helper (POT_PROVIDER_URL=http://host:4416) let server IPs through
     xargs = {}
     pot = env("POT_PROVIDER_URL")
@@ -194,6 +195,11 @@ class _Collect:
     def __init__(self):
         self.lines: list[str] = []
 
+    def saw_po_token(self) -> bool:
+        """Did the token helper actually hand yt-dlp a token for this request?"""
+        return any(("po token" in l.lower() and "fetch" in l.lower()) or "pot:" in l.lower()
+                   or "bgutilhttp" in l.lower() for l in self.lines)
+
     def notable(self, limit: int = 3) -> list[str]:
         """The warnings worth reading: no retry noise, no duplicates, most telling first."""
         seen, out = set(), []
@@ -258,8 +264,8 @@ def diagnose(url: str) -> dict:
     """What the server can actually see for this link: cookies, token helper, and the formats offered."""
     import yt_dlp
     ck = _cookie_file()
-    res = {"url": url, "cookies": bool(ck), "pot": pot_provider_status(), "js": js_solver_status(), "clients": [],
-           "formats": [], "title": "", "warnings": []}
+    res = {"url": url, "cookies": bool(ck), "pot": pot_provider_status(), "js": js_solver_status(),
+           "proxy": bool(proxy_url()), "clients": [], "formats": [], "title": "", "warnings": []}
     xargs = {}
     pot = env("POT_PROVIDER_URL")
     if pot:
@@ -269,7 +275,8 @@ def diagnose(url: str) -> dict:
         plans = [(c, False) for c, _ in plans if not (c is None and _ is False)] or [(None, False)]
     for client, use_cookies in plans:
         log = _Collect()
-        o = {"quiet": True, "no_warnings": False, "skip_download": True, "noplaylist": True, "logger": log, **_js_opts()}
+        o = {"quiet": True, "no_warnings": False, "skip_download": True, "noplaylist": True, "logger": log,
+             "verbose": True, **_js_opts(), **_net_opts()}
         if ck and use_cookies:
             o["cookiefile"] = ck
         ea = dict(xargs)
@@ -286,11 +293,12 @@ def diagnose(url: str) -> dict:
             res["title"] = res["title"] or info.get("title") or ""
             res["clients"].append({"client": name, "ok": True, "formats": len(fmts), "video_formats": len(video),
                                    "best": max([f.get("height") or 0 for f in video] or [0]),
-                                   "warnings": log.notable()})
+                                   "token": log.saw_po_token(), "warnings": log.notable()})
             if not res["formats"]:
                 res["formats"] = [f"{f.get('format_id')} {f.get('ext')} {f.get('height') or ''}p" for f in video[-8:]]
         except Exception as e:  # noqa: BLE001
-            res["clients"].append({"client": name, "ok": False, "error": _short_error(e), "warnings": log.notable()})
+            res["clients"].append({"client": name, "ok": False, "error": _short_error(e),
+                                   "token": log.saw_po_token(), "warnings": log.notable()})
         res["warnings"] += log.notable()
     res["verdict"] = _verdict(res)
     return res
@@ -319,6 +327,17 @@ def _verdict(res: dict) -> str:
     if any(_cookies_are_dead(Exception(w)) for w in res.get("warnings", [])):
         return ("Your saved YouTube cookies have been rotated and now block downloads. Remove YTDLP_COOKIES_B64 "
                 "(with the token helper and solver in place, cookies are usually not needed) or export fresh ones.")
+    blocked = [c for c in res["clients"] if not c.get("ok") and any(h in (c.get("error") or "").lower() for h in BLOCK_HINTS)]
+    if blocked:
+        got_token = any(c.get("token") for c in res["clients"])
+        if res.get("cookies"):
+            return ("YouTube is refusing this server even though the solver and token helper are working. First remove "
+                    "YTDLP_COOKIES_B64 and check again: stale cookies are the usual cause. If it still refuses, this "
+                    "server's IP address is the problem, and a proxy (YTDLP_PROXY) or uploading the file is the way "
+                    "through." + ("" if got_token else " (No proof-of-origin token was fetched for these requests.)"))
+        return ("YouTube is refusing this server's IP address. Everything on this side is set up correctly"
+                f"{' and tokens are being fetched' if got_token else ', but no proof-of-origin token was fetched'}. "
+                "Set YTDLP_PROXY to a residential proxy, or upload episode files instead.")
     saw_sabr = any("sabr" in w.lower() or "missing a url" in w.lower() for w in res["warnings"])
     if not res["pot"]["set"]:
         return ("No formats came back and the token helper is not set. Add the bgutil service and POT_PROVIDER_URL "
@@ -355,6 +374,16 @@ def _best_error(attempts: list) -> Exception:
         if not _is_format_problem(e):
             return e
     return attempts[-1][1]
+
+
+def proxy_url() -> str:
+    """An optional proxy for YouTube only (YTDLP_PROXY). Datacenter IPs get blocked; a residential proxy fixes it."""
+    return env("YTDLP_PROXY") or env("YOUTUBE_PROXY")
+
+
+def _net_opts() -> dict:
+    p = proxy_url()
+    return {"proxy": p} if p else {}
 
 
 def _js_opts() -> dict:
@@ -405,11 +434,16 @@ def _classify(e: Exception) -> Exception:
             "on this URL: it says whether the token helper and the challenge solver are working. "
             f"Uploading the file always works. (yt-dlp said: {reason})")
     if any(h in low for h in BLOCK_HINTS):
-        pot = " The token helper is set." if env("POT_PROVIDER_URL") else " Adding the token helper (POT_PROVIDER_URL, see DEPLOY.md) usually fixes this."
-        tip = ("Cookies are set but YouTube still refused." + pot + " Export fresh cookies from a logged-in spare account and try again, "
-               "or upload the video file instead." if have_cookies else
-               "Add a cookies file (YTDLP_COOKIES_B64, see DEPLOY.md) or upload the video file instead.")
-        return DownloadBlocked(f"YouTube blocked the download from this server. {tip} (yt-dlp said: {reason})")
+        if have_cookies:
+            tip = ("Your saved cookies are the most likely cause: remove YTDLP_COOKIES_B64 and try again "
+                   "(the token helper and challenge solver work without them).")
+        elif not proxy_url():
+            tip = ("This server's IP address is blocked by YouTube. Set YTDLP_PROXY to a residential proxy, "
+                   "or upload the episode file instead.")
+        else:
+            tip = "Even through the proxy YouTube refused. Try another proxy, or upload the episode file instead."
+        return DownloadBlocked(f"YouTube blocked the download from this server. {tip} "
+                               f"Run 'Check a YouTube link' on the Status page for the full picture. (yt-dlp said: {reason})")
     return DownloadBlocked(f"Could not download the video. You can upload the file instead. (yt-dlp said: {reason})")
 
 

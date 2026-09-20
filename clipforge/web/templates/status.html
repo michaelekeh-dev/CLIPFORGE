@@ -33,13 +33,14 @@
   {% if result %}
   <div class="notice" style="margin-top:12px">{{ result.verdict }}</div>
   <ul class="plain small">
-    <li>{{ '🟢' if result.cookies else '🟡' }} Cookies {{ 'loaded' if result.cookies else 'not set' }}</li>
+    <li>{{ '🟡' if result.cookies else '🟢' }} Cookies {{ 'loaded (remove them if downloads are refused)' if result.cookies else 'not set (good: YouTube rotates them)' }}</li>
+    <li>{{ '🟢' if result.proxy else '·' }} Proxy {{ 'in use' if result.proxy else 'not set' }}</li>
     <li>{{ '🟢' if result.js.ok else '🔴' }} Challenge solver: {{ (result.js.runtime or 'no JS runtime') }}{% if result.js.ejs %} + yt-dlp-ejs {{ result.js.ejs }}{% else %} · solver package missing{% endif %}</li>
     <li>{{ '🟢' if result.pot.set and result.pot.reachable and result.pot.plugin else '🔴' }} Token helper:
       {% if not result.pot.set %}not set{% else %}{{ result.pot.url }} · {{ 'reachable' if result.pot.reachable else 'NOT reachable' }} · plugin {{ 'loaded' if result.pot.plugin else 'missing' }} · {{ result.pot.detail }}{% endif %}</li>
     {% for c in result.clients %}
     <li>{{ '🟢' if c.ok and c.video_formats else '🔴' }} <b>{{ c.client }}</b>:
-      {% if c.ok %}{{ c.video_formats }} video formats{% if c.best %} up to {{ c.best }}p{% endif %}{% else %}{{ c.error }}{% endif %}
+      {% if c.ok %}{{ c.video_formats }} video formats{% if c.best %} up to {{ c.best }}p{% endif %}{% else %}{{ c.error }}{% endif %}{% if c.token %} · token fetched{% endif %}
       {% for w in c.warnings %}<br><span class="muted">{{ w[:200] }}</span>{% endfor %}</li>
     {% endfor %}
   </ul>
