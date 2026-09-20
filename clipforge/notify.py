@@ -191,8 +191,9 @@ def run_poller(base_url_fn):
     said_hello = False
     while True:
         if not enabled():
+            # no token yet: wait quietly and pick one up within seconds of it being added
             state["running"] = False
-            time.sleep(20)
+            time.sleep(2)
             continue
         state["running"] = True
         if not said_hello:
