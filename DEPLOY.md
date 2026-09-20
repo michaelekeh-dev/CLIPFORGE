@@ -48,8 +48,11 @@ Same app, no server to manage. About $10 to $15 a month depending on how much yo
 
    **If YouTube still refuses with everything set up**, its block is on the server's IP address, which is normal for
    cloud hosts. Two ways through:
-   - `YTDLP_PROXY` = a residential proxy, e.g. `http://user:pass@host:port`. Downloads then look like home traffic.
-     Providers charge roughly 1 to 3 EUR per episode-heavy month at this volume; any proxy that supports HTTP works.
+   - `YTDLP_PROXY` = a residential proxy, e.g. `http://user:pass@host:port`. Only YouTube's small API calls go
+     through it; the video file itself comes straight from Google's servers, which do not check the address. That
+     keeps a pay-per-gigabyte proxy at a few pennies a month instead of a few euros an episode. Any HTTP proxy
+     works; residential or mobile ones are the kind that YouTube trusts. (To force everything through the proxy,
+     set `proxy_metadata_only: false` in `config.yaml`.)
    - Upload the episode file instead. Everything after the download (clips, Telegram, posting) is identical.
 7. Updates: every `git push` redeploys. Logs are in the **Deployments** tab. Restarts on crash are on by default.
 

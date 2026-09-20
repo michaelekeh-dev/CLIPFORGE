@@ -16,6 +16,9 @@ download:
   max_height: 1080
   # Solver components yt-dlp may fetch when the bundled ones are too old. Empty list = never fetch.
   remote_components: [ejs:github, ejs:npm]
+  # With YTDLP_PROXY set: send only YouTube's small API calls through the proxy and pull the video itself
+  # straight from Google's servers. Keeps a paid residential proxy to a few pennies an episode.
+  proxy_metadata_only: true
   retries: 3
   # Seconds a download may take before it is treated as blocked
   timeout: 1800

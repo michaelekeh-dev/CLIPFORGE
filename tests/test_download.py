@@ -41,6 +41,17 @@ class FakeYDL:
         if FakeYDL.made_file:
             FakeYDL.made_file()
 
+    def sanitize_info(self, info):
+        return info
+
+    def download_with_info_file(self, path):
+        FakeYDL.attempts.append(self._client + (" via proxy" if self.opts.get("proxy") else " direct"))
+        err = FakeYDL.script.get(self._client + (" via proxy" if self.opts.get("proxy") else " direct"))
+        if err:
+            raise Exception(err)
+        if FakeYDL.made_file:
+            FakeYDL.made_file()
+
 
 @pytest.fixture()
 def fake_ytdlp(monkeypatch, tmp_path):
@@ -132,3 +143,20 @@ def test_a_pure_format_problem_says_so_plainly(fake_ytdlp):
     with pytest.raises(d.DownloadBlocked) as err:
         d.download("https://youtu.be/vid123")
     assert "held back every video stream" in str(err.value) and "blocked the download" not in str(err.value)
+
+
+def test_a_proxy_is_used_for_the_page_and_not_for_the_video(fake_ytdlp, monkeypatch):
+    """The expensive part must not go through a paid proxy unless it has to."""
+    monkeypatch.setenv("YTDLP_PROXY", "http://user:pass@proxy:8080")
+    meta = d.download("https://youtu.be/vid123")
+    assert meta["path"]
+    assert "default without cookies direct" in FakeYDL.attempts
+    assert "default without cookies via proxy" not in FakeYDL.attempts
+
+
+def test_address_bound_links_fall_back_to_the_proxy(fake_ytdlp, monkeypatch):
+    monkeypatch.setenv("YTDLP_PROXY", "http://user:pass@proxy:8080")
+    FakeYDL.script = {"default without cookies direct": "ERROR: HTTP Error 403: Forbidden"}
+    meta = d.download("https://youtu.be/vid123")
+    assert meta["path"]
+    assert FakeYDL.attempts[-1] == "default without cookies via proxy"

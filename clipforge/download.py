@@ -152,8 +152,7 @@ def download(url: str, progress=None) -> dict:
                 if relaxed:
                     o = {**o, "format": "best", "merge_output_format": None}
                 try:
-                    with yt_dlp.YoutubeDL(o) as ydl:
-                        ydl.download([url])
+                    _fetch(o, url, proxy_is_metadata_only())
                     ok = True
                     break
                 except Exception as e:  # noqa: BLE001
@@ -384,6 +383,36 @@ def proxy_url() -> str:
 def _net_opts() -> dict:
     p = proxy_url()
     return {"proxy": p} if p else {}
+
+
+def proxy_is_metadata_only() -> bool:
+    """A proxy is only needed for YouTube's small API calls: the video files come from Google's CDN, which does
+    not care about the server's address. Keeping the big download off the proxy is what makes this affordable."""
+    return bool(proxy_url()) and bool(cfg.get("download.proxy_metadata_only", True))
+
+
+def _fetch(o: dict, url: str, split: bool) -> None:
+    """One download attempt. With `split`, the page is read through the proxy and the video is fetched directly."""
+    import yt_dlp
+    if not split:
+        with yt_dlp.YoutubeDL(o) as ydl:
+            ydl.download([url])
+        return
+    with yt_dlp.YoutubeDL({**o, "proxy": proxy_url()}) as ydl:
+        info = ydl.sanitize_info(ydl.extract_info(url, download=False))
+    direct = {k: v for k, v in o.items() if k != "proxy"}
+    tmp = DL_DIR / f"info_{info.get('id', 'video')}.info.json"
+    tmp.parent.mkdir(parents=True, exist_ok=True)
+    tmp.write_text(json.dumps(info))
+    try:
+        with yt_dlp.YoutubeDL(direct) as ydl:
+            ydl.download_with_info_file(str(tmp))
+    except Exception:
+        # some videos hand out address-bound links: fall back to pulling it all through the proxy
+        with yt_dlp.YoutubeDL({**o, "proxy": proxy_url()}) as ydl:
+            ydl.download_with_info_file(str(tmp))
+    finally:
+        tmp.unlink(missing_ok=True)
 
 
 def _js_opts() -> dict:
