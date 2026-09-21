@@ -60,14 +60,27 @@ def whoami() -> dict:
     return {}
 
 
-def send_text(text: str, chat: str | None = None, buttons: list[list[dict]] | None = None) -> dict:
+def send_text(text: str, chat: str | None = None, buttons: list[list[dict]] | None = None, markup: dict | None = None) -> dict:
     chat = chat or chat_id()
     if not enabled() or not chat:
         return {"ok": False}
     data = {"chat_id": chat, "text": text, "parse_mode": "HTML", "disable_web_page_preview": True}
     if buttons:
         data["reply_markup"] = {"inline_keyboard": buttons}
+    if markup:
+        data["reply_markup"] = markup
     return _call("sendMessage", **data)
+
+
+def upload_text(clip: dict) -> tuple[str, str]:
+    """Exactly the title and description YouTube would get if you tapped Post right now."""
+    from . import autopilot
+    proj = db.loads(db.row("SELECT * FROM projects WHERE id=?", (clip.get("project_id"),)), "options", "info") or {}
+    try:
+        title, desc, _ = autopilot.post_text(clip, proj)
+    except Exception:  # noqa: BLE001
+        title, desc = clip.get("title") or "Clip", ""
+    return title, desc
 
 
 def clip_caption(clip: dict, post: dict | None, base_url: str) -> str:
@@ -75,11 +88,17 @@ def clip_caption(clip: dict, post: dict | None, base_url: str) -> str:
     d = clip.get("data") or {}
     fc = d.get("fact_check") or {}
     dur = round((clip["end"] or 0) - (clip["start"] or 0))
-    lines = [f"<b>{_esc(clip['title'])}</b>", f"{badge(fc.get('verdict', ''))} {_esc(fc.get('verdict', 'not checked'))} · {_esc(fc.get('type', ''))} · {dur}s · score {int(clip['score'] or 0)}"]
+    title, desc = upload_text(clip)
+    first = [ln for ln in desc.splitlines() if ln.strip()]
+    lines = [f"<b>{_esc(title)}</b>",
+             f"{badge(fc.get('verdict', ''))} {_esc(fc.get('verdict', 'not checked'))} · {_esc(fc.get('type', ''))} · {dur}s · score {int(clip['score'] or 0)}"]
+    if first:
+        lines.append("📝 " + _esc(" ".join(first[:2]))[:220])
     if fc.get("summary"):
-        lines.append(_esc(fc["summary"])[:300])
+        lines.append(_esc(fc["summary"])[:240])
     if fc.get("red_flags"):
-        lines.append("⚠️ " + _esc("; ".join(fc["red_flags"])[:300]))
+        lines.append("⚠️ " + _esc("; ".join(fc["red_flags"])[:240]))
+
     if post:
         if post["status"] == "waiting":
             lines.append(f"🕒 Posts at {_fmt_time(post['publish_at'])} unless you cancel.")
@@ -93,13 +112,46 @@ def clip_caption(clip: dict, post: dict | None, base_url: str) -> str:
     return "\n".join(lines)
 
 
+EDIT_ROW = [{"text": "✏️ Title", "callback_data": "edit:{c}:title"},
+            {"text": "📝 Description", "callback_data": "edit:{c}:desc"}]
+
+
 def clip_buttons(clip_id: str, post: dict | None) -> list[list[dict]]:
     st = (post or {}).get("status", "")
-    if st == "waiting":
-        return [[{"text": "🚫 Cancel post", "callback_data": f"cancel:{clip_id}"}]]
-    if st in ("uploaded", "scheduled", "published", "uploading"):
+    if st == "uploading":
         return []
-    return [[{"text": "✅ Post", "callback_data": f"post:{clip_id}"}, {"text": "⏭ Skip", "callback_data": f"skip:{clip_id}"}]]
+    if st in ("uploaded", "scheduled", "published"):
+        return []
+    edit = [{**b, "callback_data": b["callback_data"].format(c=clip_id)} for b in EDIT_ROW]
+    if st == "waiting":
+        return [[{"text": "🚀 Post now", "callback_data": f"now:{clip_id}"},
+                 {"text": "🕒 Change time", "callback_data": f"when:{clip_id}"}],
+                edit,
+                [{"text": "🚫 Cancel post", "callback_data": f"cancel:{clip_id}"}]]
+    return [[{"text": "🚀 Post now", "callback_data": f"now:{clip_id}"},
+             {"text": "🕒 Schedule", "callback_data": f"when:{clip_id}"}],
+            edit,
+            [{"text": "⏭ Skip", "callback_data": f"skip:{clip_id}"}]]
+
+
+def time_buttons(clip_id: str) -> list[list[dict]]:
+    """Concrete times to choose from, taken from your autopilot slots."""
+    from . import autopilot
+    rows, pair = [], []
+    choices = [("In 1 hour", time.time() + 3600)] + [(_fmt_time(t), t) for t in autopilot.slot_choices(3)]
+    seen = set()
+    for label, ts in choices:
+        if label in seen:
+            continue
+        seen.add(label)
+        pair.append({"text": label, "callback_data": f"at:{clip_id}:{int(ts)}"})
+        if len(pair) == 2:
+            rows.append(pair)
+            pair = []
+    if pair:
+        rows.append(pair)
+    rows.append([{"text": "← Back", "callback_data": f"back:{clip_id}"}])
+    return rows
 
 
 def send_clip(clip_id: str, base_url: str) -> dict:
@@ -151,9 +203,22 @@ def handle_update(u: dict, base_url: str):
         m = u["message"]
         text = (m.get("text") or "").strip()
         chat = str(m["chat"]["id"])
+        pending = db.get_setting("tg_edit:" + chat)
+        if pending and text and not text.startswith("/"):
+            db.execute("DELETE FROM settings WHERE key=?", ("tg_edit:" + chat,))
+            autopilot.set_post_text(pending["clip_id"], pending["field"], text)
+            clip = db.loads(db.row("SELECT * FROM clips WHERE id=?", (pending["clip_id"],)), "data", "settings") or {}
+            title, desc = upload_text(clip)
+            send_text(f"Saved. It will go up as:\n<b>{_esc(title)}</b>\n\n<code>{_esc(desc[:600])}</code>", chat)
+            refresh_clip_message(pending["clip_id"], base_url)
+            return
+        if pending and text.startswith("/cancel"):
+            db.execute("DELETE FROM settings WHERE key=?", ("tg_edit:" + chat,))
+            send_text("Left it as it was.", chat)
+            return
         if text.startswith("/start"):
             db.set_setting("telegram_chat_id", chat)
-            send_text("Linked. Finished clips will show up here with Post / Skip buttons.\nCommands: /status, /stats, /post <link> (start a new episode), /pause, /resume", chat)
+            send_text("Linked. Every finished clip lands here with its title, its description and buttons: Post now, Schedule, edit the title or the description, or Skip.\nCommands: /status, /stats, /post <link> (start a new episode), /pause, /resume", chat)
         elif text.startswith("/status"):
             send_text(autopilot.status_text(), chat)
         elif text.startswith("/stats") or text.startswith("/numbers"):
@@ -174,10 +239,36 @@ def handle_update(u: dict, base_url: str):
         q = u["callback_query"]
         data = q.get("data", "")
         action, _, clip_id = data.partition(":")
+        clip_id, _, arg = clip_id.partition(":")
+        chat = str(q["message"]["chat"]["id"]) if q.get("message") else (chat_id() or "")
         try:
-            if action == "post":
-                p = autopilot.queue_post(clip_id)
-                _call("answerCallbackQuery", callback_query_id=q["id"], text=f"Queued for {_fmt_time(p['publish_at'])}" if p else "Could not queue")
+            if action in ("now", "post"):
+                p = autopilot.post_now(clip_id)
+                _call("answerCallbackQuery", callback_query_id=q["id"],
+                      text="Uploading to YouTube now…" if p else "Could not post")
+            elif action == "when":
+                # swap the keyboard for a list of times; nothing is decided until one is tapped
+                _call("editMessageReplyMarkup", chat_id=chat, message_id=q["message"]["message_id"],
+                      reply_markup={"inline_keyboard": time_buttons(clip_id)})
+                _call("answerCallbackQuery", callback_query_id=q["id"], text="Pick a time")
+                return
+            elif action == "at":
+                p = autopilot.reschedule(clip_id, float(arg))
+                _call("answerCallbackQuery", callback_query_id=q["id"],
+                      text=f"Posts {_fmt_time(float(arg))}" if p else "Could not schedule")
+            elif action == "back":
+                _call("answerCallbackQuery", callback_query_id=q["id"])
+            elif action == "edit":
+                field = "title" if arg == "title" else "desc"
+                db.set_setting("tg_edit:" + chat, {"clip_id": clip_id, "field": field})
+                clip = db.loads(db.row("SELECT * FROM clips WHERE id=?", (clip_id,)), "data", "settings") or {}
+                cur, desc = upload_text(clip)
+                now_text = cur if field == "title" else desc
+                send_text(f"Send me the new {'title' if field == 'title' else 'description'}.\n\nRight now it is:\n"
+                          f"<code>{_esc(now_text[:900])}</code>\n\nOr send /cancel to leave it.", chat,
+                          markup={"force_reply": True, "input_field_placeholder": "type it here"})
+                _call("answerCallbackQuery", callback_query_id=q["id"], text="Type the new one")
+                return
             elif action == "skip":
                 autopilot.skip_clip(clip_id)
                 _call("answerCallbackQuery", callback_query_id=q["id"], text="Skipped")

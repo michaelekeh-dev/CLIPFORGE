@@ -177,7 +177,8 @@ def next_slot(after: float | None = None) -> float:
             h, m = [int(x) for x in hhmm.split(":")]
             slot = datetime(d.year, d.month, d.day, h, m, tzinfo=z)
             ts = slot.timestamp()
-            if ts <= time.time() + 120 or ts in taken:
+            # never in the past, and never at or before the time we were asked to start looking from
+            if ts <= max(time.time() + 120, after or 0) or ts in taken:
                 continue
             return ts
     return time.time() + 3600
@@ -216,15 +217,47 @@ def post_text(clip: dict, project: dict) -> tuple[str, str, list[str]]:
     """Title, description and tags for YouTube from the clip's data and the description footer."""
     d = clip.get("data") or {}
     st = get_settings()
-    title = (clip["title"] or d.get("title") or "Clip").strip()
+    title = (d.get("post_title") or clip["title"] or d.get("title") or "Clip").strip()
     if "#shorts" not in title.lower() and len(title) <= 92:
         title = title + " #Shorts"
     hashtags = d.get("hashtags") or []
     credit = (project.get("options") or {}).get("credit_name") or project.get("channel") or ""
     footer = (st.get("description_footer") or "").format(source_url=project.get("source_url") or "", credit=credit)
-    desc = (d.get("description") or "").strip() + "\n\n" + " ".join(hashtags) + "\n\n" + footer
+    if d.get("post_description"):
+        # you wrote this one yourself: keep it word for word, only add the credit footer if it is missing
+        body = d["post_description"].strip()
+        desc = body if footer.strip() and footer.strip() in body else body + "\n\n" + footer
+    else:
+        desc = (d.get("description") or "").strip() + "\n\n" + " ".join(hashtags) + "\n\n" + footer
     tags = [h.lstrip("#") for h in hashtags] + [k for k in (project.get("options") or {}).get("keywords", [])][:10]
     return title[:100], desc.strip(), tags
+
+
+def upload_post(p: dict) -> bool:
+    """Send one queued post to YouTube. Publishes straight away when its time is now."""
+    clip = db.loads(db.row("SELECT * FROM clips WHERE id=?", (p["clip_id"],)), "data", "settings")
+    proj = db.loads(db.row("SELECT * FROM projects WHERE id=?", (p["project_id"],)), "options", "info")
+    if not clip or not proj or not clip.get("path"):
+        db.update("posts", p["id"], {"status": "error", "error": "clip missing"})
+        return False
+    db.update("posts", p["id"], {"status": "uploading"})
+    notify.refresh_clip_message(p["clip_id"], base_url())
+    try:
+        title, desc, tags = post_text(clip, proj)
+        st = get_settings()
+        r = youtube.upload(clip["path"], title, desc, tags, publish_at=p["publish_at"], public=bool(st.get("public", True)))
+        db.update("posts", p["id"], {"status": "scheduled" if r["status"] == "scheduled" else "uploaded", "youtube_id": r["id"], "title": title})
+        notify.send_text(f"📤 Uploaded <b>{notify._esc(title)}</b> → https://youtu.be/{r['id']}" +
+                         (f"\nGoes public {notify._fmt_time(p['publish_at'])}." if r["status"] == "scheduled" else
+                          ("\nIt is private until YouTube verifies the API project (see DEPLOY.md), publish it from the YouTube app." if r["status"] == "private" else "")))
+        ok = True
+    except Exception as e:  # noqa: BLE001
+        db.update("posts", p["id"], {"status": "error", "error": str(e)[:500]})
+        db.log_error("youtube", str(e))
+        notify.send_text(f"❌ Upload failed for <b>{notify._esc(clip['title'])}</b>: {notify._esc(str(e)[:200])}")
+        ok = False
+    notify.refresh_clip_message(p["clip_id"], base_url())
+    return ok
 
 
 def run_due_posts() -> int:
@@ -234,27 +267,51 @@ def run_due_posts() -> int:
     n = 0
     lead = 20 * 60  # upload 20 minutes before the slot; YouTube publishes it at the exact time
     for p in db.rows("SELECT * FROM posts WHERE status='waiting' AND publish_at <= ? ORDER BY publish_at", (time.time() + lead,)):
-        clip = db.loads(db.row("SELECT * FROM clips WHERE id=?", (p["clip_id"],)), "data", "settings")
-        proj = db.loads(db.row("SELECT * FROM projects WHERE id=?", (p["project_id"],)), "options", "info")
-        if not clip or not proj or not clip.get("path"):
-            db.update("posts", p["id"], {"status": "error", "error": "clip missing"})
-            continue
-        db.update("posts", p["id"], {"status": "uploading"})
-        try:
-            title, desc, tags = post_text(clip, proj)
-            st = get_settings()
-            r = youtube.upload(clip["path"], title, desc, tags, publish_at=p["publish_at"], public=bool(st.get("public", True)))
-            db.update("posts", p["id"], {"status": "scheduled" if r["status"] == "scheduled" else "uploaded", "youtube_id": r["id"], "title": title})
-            notify.send_text(f"📤 Uploaded <b>{notify._esc(title)}</b> → https://youtu.be/{r['id']}" +
-                             (f"\nGoes public {notify._fmt_time(p['publish_at'])}." if r["status"] == "scheduled" else
-                              ("\nIt is private until YouTube verifies the API project (see DEPLOY.md), publish it from the YouTube app." if r["status"] == "private" else "")))
+        if upload_post(p):
             n += 1
-        except Exception as e:  # noqa: BLE001
-            db.update("posts", p["id"], {"status": "error", "error": str(e)[:500]})
-            db.log_error("youtube", str(e))
-            notify.send_text(f"❌ Upload failed for <b>{notify._esc(clip['title'])}</b>: {notify._esc(str(e)[:200])}")
-        notify.refresh_clip_message(p["clip_id"], base_url())
     return n
+
+
+def post_now(clip_id: str) -> dict | None:
+    """Put this clip on YouTube right now, jumping the queue. Uploads in the background."""
+    p = queue_post(clip_id)
+    if not p:
+        return None
+    if p["status"] in ("uploading", "uploaded", "scheduled", "published"):
+        return None  # already on YouTube: never post the same clip twice
+    db.update("posts", p["id"], {"publish_at": time.time(), "status": "waiting"})
+    p = db.row("SELECT * FROM posts WHERE id=?", (p["id"],))
+    threading.Thread(target=upload_post, args=(p,), daemon=True, name="post-now").start()
+    return p
+
+
+def reschedule(clip_id: str, when: float) -> dict | None:
+    """Move a clip's post to a time you picked."""
+    p = queue_post(clip_id)
+    if not p or p["status"] not in ("waiting", "error"):
+        return None
+    db.update("posts", p["id"], {"publish_at": when, "status": "waiting", "error": ""})
+    return db.row("SELECT * FROM posts WHERE id=?", (p["id"],))
+
+
+def slot_choices(count: int = 3) -> list[float]:
+    """The next few free posting slots, for the Schedule buttons."""
+    out, after = [], None
+    for _ in range(count):
+        t = next_slot(after)
+        if out and t <= out[-1]:
+            break
+        out.append(t)
+        after = t + 60
+    return out
+
+
+def set_post_text(clip_id: str, field: str, value: str):
+    """Remember a title or description you typed yourself."""
+    key = "post_title" if field == "title" else "post_description"
+    db.execute("UPDATE clips SET data = json_set(data, ?, ?) WHERE id=?", ("$." + key, value.strip(), clip_id))
+    if field == "title":
+        db.execute("UPDATE posts SET title=? WHERE clip_id=? AND status IN ('waiting','error')", (value.strip()[:100], clip_id))
 
 
 def status_text() -> str:

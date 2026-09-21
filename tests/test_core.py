@@ -352,8 +352,9 @@ def test_telegram_caption_and_buttons():
             "data": {"fact_check": {"verdict": "ok", "type": "faith", "summary": "fine", "red_flags": []}}}
     cap = notify.clip_caption(clip, None, "https://x")
     assert "&lt;b&gt;" in cap and "🟢" in cap and "https://x/clip/c1" in cap
-    assert notify.clip_buttons("c1", None)[0][0]["callback_data"] == "post:c1"
-    assert notify.clip_buttons("c1", {"status": "waiting"})[0][0]["callback_data"] == "cancel:c1"
+    assert notify.clip_buttons("c1", None)[0][0]["callback_data"] == "now:c1"
+    queued = [b["callback_data"] for r in notify.clip_buttons("c1", {"status": "waiting"}) for b in r]
+    assert "cancel:c1" in queued and "now:c1" in queued
 
 
 def test_storage_breakdown_and_free_space(tmp_path, monkeypatch):
