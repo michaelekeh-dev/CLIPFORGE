@@ -37,6 +37,8 @@
       <label>Post times (comma separated, 24h)<input class="input" name="post_times" value="{{ st.post_times|join(', ') }}"></label>
       <label>Time zone<input class="input" name="timezone" value="{{ st.timezone }}"></label>
       <label>Max posts per day<input class="input" type="number" name="max_posts_per_day" value="{{ st.max_posts_per_day }}" min="1" max="10"></label>
+      <label class="check"><input type="checkbox" name="backfill" {% if st.backfill %}checked{% endif %}> Keep posting from older episodes when the queue runs low</label>
+      <label>Start another episode when fewer than this many days are queued<input class="input" type="number" name="queue_days" value="{{ st.queue_days }}" min="1" max="30"></label>
       <label class="check"><input type="checkbox" name="public" {% if st.public %}checked{% endif %}> Publish publicly (off = upload as private)</label>
       <label class="span2">Description footer (placeholders: {source_url}, {credit})<textarea class="input" name="description_footer" rows="3">{{ st.description_footer }}</textarea></label>
     </div>
@@ -54,7 +56,15 @@
   </ul>
   {% if ready.ok %}
   <div class="notice">Nothing left to do. New episodes get clipped, checked, and posted {{ ready.per_day }}× a day at {{ ready.times }}.</div>
-  {% else %}
+  {% endif %}
+  <p class="muted small">
+    <b>{{ ready.days_queued }} days</b> of posts are lined up{% if ready.backlog %}, and {{ ready.backlog }} older
+    episode{{ 's' if ready.backlog != 1 else '' }} from the channel have never been clipped{% endif %}.
+    {% if st.backfill %}When the queue drops below {{ st.queue_days }} days, one of those older episodes is clipped
+    automatically, so you keep posting on the days the channel is quiet.{% else %}Turn on "keep posting from older
+    episodes" above and quiet weeks fill themselves in.{% endif %}
+  </p>
+  {% if not ready.ok %}
   <p class="muted small">Every red line above is something only you can do. Until they are all green, clips wait for your tap in Telegram.</p>
   {% endif %}
   <p class="muted small">A clip is never posted by itself if it is cut mid-sentence, the speaker's head is cut off, or

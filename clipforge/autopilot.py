@@ -21,6 +21,11 @@ DEFAULTS = {
     "post_times": ["11:00", "18:00"],
     "timezone": "Europe/London",
     "max_posts_per_day": 2,
+    # keep posting from the channel's older episodes whenever the queue runs low, so a quiet week
+    # on the source channel does not mean a quiet week on yours
+    "backfill": True,
+    # start another episode when fewer than this many days of posts are queued up
+    "queue_days": 3,
     "description_footer": "Full episode: {source_url}\nCredit: {credit}\n\n#Shorts #TheTruthUntold",
     "public": True,
 }
@@ -214,6 +219,38 @@ def on_project_done(pid: str):
 
 
 # ----------------------------------------------------------------------------- posting queue
+def days_queued() -> float:
+    """How many days of posting are already lined up."""
+    n = (db.row("SELECT COUNT(*) AS n FROM posts WHERE status IN ('waiting','uploading')") or {}).get("n", 0)
+    per_day = max(1, int(get_settings().get("max_posts_per_day", 2) or 2))
+    return round(n / per_day, 2)
+
+
+def backlog() -> list[dict]:
+    """Episodes from the channel we know about but have never clipped, newest first."""
+    return db.rows("SELECT * FROM seen_videos WHERE (project_id IS NULL OR project_id='') ORDER BY rowid")
+
+
+def backfill_once() -> str | None:
+    """When the queue runs low, clip one more of the channel's older episodes. One at a time."""
+    st = get_settings()
+    if not (st.get("enabled") and st.get("backfill")):
+        return None
+    if days_queued() >= float(st.get("queue_days", 3) or 3):
+        return None
+    if db.row("SELECT 1 FROM projects WHERE status IN ('running','queued') LIMIT 1"):
+        return None  # something is already being clipped; do not pile up downloads
+    nxt = next((v for v in backlog() if not _looks_like_short(v)), None)
+    if not nxt:
+        return None
+    url = f"https://www.youtube.com/watch?v={nxt['video_id']}"
+    pid = start_project_from_url(url, title=nxt.get("title") or "")
+    db.execute("UPDATE seen_videos SET project_id=? WHERE video_id=?", (pid, nxt["video_id"]))
+    notify.send_text(f"📼 Queue was getting low, so I'm clipping an older episode: "
+                     f"<b>{notify._esc(nxt.get('title') or nxt['video_id'])}</b>")
+    return pid
+
+
 def next_slot(after: float | None = None) -> float:
     """Next free posting time from post_times, respecting max_posts_per_day."""
     st = get_settings()
@@ -378,7 +415,7 @@ def ready() -> dict:
              ("Claude picking the clips", llm.mode() == "live", "add a workspace Anthropic key")]
     missing = [(name, how) for name, ok, how in steps if not ok]
     return {"steps": [{"name": n, "ok": o, "how": h} for n, o, h in steps], "missing": missing,
-            "ok": not missing,
+            "ok": not missing, "days_queued": days_queued(), "backlog": len(backlog()),
             "times": ", ".join(sorted(st.get("post_times") or [])), "per_day": st.get("max_posts_per_day")}
 
 
@@ -409,6 +446,7 @@ def _loop():
             if st.get("enabled") and time.time() - last_check > float(st.get("check_minutes", 60)) * 60:
                 check_channel_once()
                 last_check = time.time()
+            backfill_once()
             run_due_posts()
         except Exception as e:  # noqa: BLE001
             db.log_error("autopilot", str(e))

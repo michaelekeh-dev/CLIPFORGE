@@ -439,14 +439,16 @@ def autopilot_page(request: Request, msg: str = "", check_channel: str = ""):
 async def api_autopilot_save(request: Request, enabled: str = Form(""), channel_url: str = Form(""), check_minutes: int = Form(60),
                              clips: int = Form(5), length: str = Form("auto"), keywords: str = Form(""), mode: str = Form("ask"),
                              post_times: str = Form("11:00,18:00"), timezone: str = Form("Europe/London"), max_posts_per_day: int = Form(2),
-                             description_footer: str = Form(""), public: str = Form("on")):
+                             description_footer: str = Form(""), public: str = Form("on"),
+                             backfill: str = Form(""), queue_days: int = Form(3)):
     times = [t.strip() for t in post_times.split(",") if re_time(t.strip())]
     autopilot.save_settings({"enabled": enabled == "on", "channel_url": channel_url.strip(), "check_minutes": max(10, int(check_minutes)),
                              "clips": max(1, min(10, int(clips))), "length": length if length in ("auto", "short", "medium", "long") else "auto",
                              "keywords": [k.strip() for k in keywords.split(",") if k.strip()], "mode": mode if mode in ("ask", "auto") else "ask",
                              "post_times": times or ["12:00"], "timezone": timezone.strip() or "Europe/London",
                              "max_posts_per_day": max(1, min(10, int(max_posts_per_day))), "description_footer": description_footer,
-                             "public": public == "on"})
+                             "public": public == "on", "backfill": backfill == "on",
+                             "queue_days": max(1, min(30, int(queue_days)))})
     return RedirectResponse("/autopilot?msg=Saved", status_code=303)
 
 

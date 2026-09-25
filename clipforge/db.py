@@ -78,7 +78,7 @@ CREATE TABLE IF NOT EXISTS posts (
   telegram_msg TEXT DEFAULT '',
   created_at REAL, updated_at REAL
 );
-CREATE TABLE IF NOT EXISTS seen_videos (video_id TEXT PRIMARY KEY, title TEXT, seen_at REAL, project_id TEXT);
+CREATE TABLE IF NOT EXISTS seen_videos (video_id TEXT PRIMARY KEY, title TEXT, seen_at REAL, project_id TEXT, created_at REAL);
 CREATE TABLE IF NOT EXISTS errors (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   at REAL, where_ TEXT, message TEXT
@@ -111,6 +111,10 @@ def init_db():
         cols = {r[1] for r in c.execute("PRAGMA table_info(jobs)").fetchall()}
         if "owner_pid" not in cols:
             c.execute("ALTER TABLE jobs ADD COLUMN owner_pid INTEGER DEFAULT 0")
+        # insert() stamps created_at on everything, so a table without it rejects every row
+        seen_cols = {r[1] for r in c.execute("PRAGMA table_info(seen_videos)").fetchall()}
+        if seen_cols and "created_at" not in seen_cols:
+            c.execute("ALTER TABLE seen_videos ADD COLUMN created_at REAL")
         c.commit()
 
 
