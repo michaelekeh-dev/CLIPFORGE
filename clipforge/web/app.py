@@ -442,7 +442,7 @@ async def api_autopilot_save(request: Request, enabled: str = Form(""), channel_
                              description_footer: str = Form(""), public: str = Form("on"),
                              backfill: str = Form(""), queue_days: int = Form(3)):
     times = [t.strip() for t in post_times.split(",") if re_time(t.strip())]
-    autopilot.save_settings({"enabled": enabled == "on", "channel_url": channel_url.strip(), "check_minutes": max(10, int(check_minutes)),
+    autopilot.save_settings({"enabled": enabled == "on", "channel_url": channel_url.strip(), "check_minutes": max(10, min(autopilot.MAX_CHECK_MINUTES, int(check_minutes))),
                              "clips": max(1, min(10, int(clips))), "length": length if length in ("auto", "short", "medium", "long") else "auto",
                              "keywords": [k.strip() for k in keywords.split(",") if k.strip()], "mode": mode if mode in ("ask", "auto") else "ask",
                              "post_times": times or ["12:00"], "timezone": timezone.strip() or "Europe/London",

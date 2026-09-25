@@ -453,6 +453,29 @@ def _loop():
         time.sleep(60)
 
 
+# Checking less often than once a day is never what anyone meant: the watcher exists to notice a new
+# episode, and a week-long gap makes it useless. 10000 minutes (a typo for 1000, or just a slip) is the
+# value that caused this.
+MAX_CHECK_MINUTES = 1440
+
+
+def fix_impossible_settings() -> list[str]:
+    """Repair settings that cannot do what they were set for. Runs once on startup."""
+    st = get_settings()
+    fixed = []
+    if float(st.get("check_minutes") or 60) > MAX_CHECK_MINUTES:
+        was = st["check_minutes"]
+        save_settings({"check_minutes": 60})
+        fixed.append(f"check_minutes {was} -> 60 (it was checking the channel every {float(was) / 1440:.1f} days)")
+    for note in fixed:
+        db.log_error("autopilot", "setting repaired: " + note)
+    return fixed
+
+
 def start_threads():
+    try:
+        fix_impossible_settings()
+    except Exception as e:  # noqa: BLE001
+        db.log_error("autopilot", str(e))
     threading.Thread(target=_loop, daemon=True, name="autopilot").start()
     notify.start_poller(base_url)

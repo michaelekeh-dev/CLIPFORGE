@@ -123,3 +123,30 @@ def test_check_channel_once_records_every_episode_it_looks_at(clean, monkeypatch
     # the rest must be remembered, or they can never be used as backlog later
     assert len(autopilot.backlog()) == 3
     assert [v["video_id"] for v in autopilot.backlog()] == ["v1", "v2", "v3"]
+
+
+def test_a_check_interval_of_days_is_repaired_on_startup(clean):
+    """10000 minutes is a week between checks. Nobody means that, so it is put back to hourly."""
+    autopilot.save_settings({"check_minutes": 10000})
+    fixed = autopilot.fix_impossible_settings()
+    assert fixed and "10000" in fixed[0]
+    assert autopilot.get_settings()["check_minutes"] == 60
+
+
+def test_a_sensible_interval_is_left_alone(clean):
+    autopilot.save_settings({"check_minutes": 360})
+    assert autopilot.fix_impossible_settings() == []
+    assert autopilot.get_settings()["check_minutes"] == 360
+
+
+def test_the_form_cannot_take_an_impossible_interval_either(clean):
+    from fastapi.testclient import TestClient
+    from clipforge.web.app import app
+    autopilot.save_settings({"check_minutes": 60})
+    TestClient(app).post("/api/autopilot", data={
+        "enabled": "on", "channel_url": "https://www.youtube.com/@JumpersJump", "check_minutes": "10000",
+        "clips": "10", "length": "medium", "keywords": "God", "mode": "auto", "post_times": "11:00, 18:00",
+        "timezone": "Europe/London", "max_posts_per_day": "2", "description_footer": "", "public": "on",
+        "backfill": "on", "queue_days": "3"}, follow_redirects=False)
+    assert autopilot.get_settings()["check_minutes"] == autopilot.MAX_CHECK_MINUTES
+    autopilot.save_settings({"check_minutes": 60})
