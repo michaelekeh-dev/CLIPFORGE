@@ -5,7 +5,7 @@ import threading
 import time
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
-from . import db, notify, youtube
+from . import db, notify, youtube, review, llm
 from .config import cfg, env
 
 DEFAULTS = {
@@ -73,8 +73,29 @@ def channel_feed(channel_url: str) -> list[dict]:
 
 
 def resolve_channel_id(channel_url: str) -> str | None:
-    if "channel/" in channel_url:
-        return channel_url.rstrip("/").split("channel/")[-1].split("/")[0]
+    """The UC... id behind a channel link. Tries the cheap ways first so a blocked yt-dlp is not the end of it."""
+    url = (channel_url or "").strip()
+    if not url:
+        return None
+    if url.startswith("UC") and len(url) > 20:
+        return url
+    if "channel/" in url:
+        return url.rstrip("/").split("channel/")[-1].split("/")[0]
+    # the channel page carries its own id, and a plain page fetch works where the API page is blocked
+    try:
+        import httpx
+        import re as _re
+        from .download import proxy_url
+        px = proxy_url()
+        r = httpx.get(url.rstrip("/"), timeout=30, follow_redirects=True,
+                      headers={"User-Agent": "Mozilla/5.0", "Accept-Language": "en-US,en;q=0.9"},
+                      **({"proxy": px} if px else {}))
+        m = _re.search(r'"(?:channelId|externalId)"\s*:\s*"(UC[\w-]{20,})"', r.text) or \
+            _re.search(r'channel/(UC[\w-]{20,})', r.text)
+        if m:
+            return m.group(1)
+    except Exception as e:  # noqa: BLE001
+        db.log_error("autopilot", f"channel page: {str(e)[:200]}")
     try:
         import yt_dlp
         from .download import _cookie_file
@@ -83,11 +104,36 @@ def resolve_channel_id(channel_url: str) -> str | None:
         if ck:
             opts["cookiefile"] = ck
         with yt_dlp.YoutubeDL(opts) as ydl:
-            info = ydl.extract_info(channel_url.rstrip("/") + "/videos", download=False)
+            info = ydl.extract_info(url.rstrip("/") + "/videos", download=False)
         return info.get("channel_id") or info.get("uploader_id") or (info.get("id") if str(info.get("id", "")).startswith("UC") else None)
     except Exception as e:  # noqa: BLE001
-        db.log_error("autopilot", f"channel id: {e}")
+        db.log_error("autopilot", f"channel id: {str(e)[:200]}")
         return None
+
+
+def channel_check(channel_url: str = "") -> dict:
+    """Say out loud whether the watcher can actually see this channel, and what it would clip next."""
+    url = (channel_url or get_settings().get("channel_url") or "").strip()
+    if not url:
+        return {"ok": False, "detail": "No channel set yet.", "videos": []}
+    cid = db.get_setting("channel_id:" + url) or resolve_channel_id(url)
+    if not cid:
+        return {"ok": False, "url": url, "videos": [],
+                "detail": "Could not work out the channel id from that link. Open the channel on YouTube, copy the "
+                          "link from the address bar, and paste that. A link with /channel/UC... in it always works."}
+    db.set_setting("channel_id:" + url, cid)
+    try:
+        feed = channel_feed(url)
+    except Exception as e:  # noqa: BLE001
+        return {"ok": False, "url": url, "channel_id": cid, "videos": [],
+                "detail": f"Found the channel ({cid}) but its video list would not load: {str(e)[:160]}"}
+    if not feed:
+        return {"ok": False, "url": url, "channel_id": cid, "videos": [],
+                "detail": f"Found the channel ({cid}) but it lists no videos."}
+    fresh = [v for v in feed if not db.row("SELECT 1 FROM seen_videos WHERE video_id=?", (v["id"],))
+             and not _looks_like_short(v)]
+    return {"ok": True, "url": url, "channel_id": cid, "videos": feed[:8], "new": len(fresh),
+            "detail": f"Watching {len(feed)} recent videos. {len(fresh)} not clipped yet."}
 
 
 def start_project_from_url(url: str, title: str = "") -> str:
@@ -149,15 +195,22 @@ def on_project_done(pid: str):
         notify.send_text(f"No clips came out of <b>{notify._esc(p['title'])}</b>. {base_url()}/project/{pid}")
         return
     notify.send_text(f"✂️ <b>{notify._esc(p['title'])}</b>: {len(clips)} clips ready.")
+    held = 0
     for c in clips:
         d = db.loads(dict(c), "data")["data"] or {}
         verdict = (d.get("fact_check") or {}).get("verdict", "")
+        rev = d.get("review") or {}
         if st["mode"] == "auto" and youtube.connected():
-            if verdict == "ok":
+            if review.blocks_autopost(rev):
+                held += 1  # the clip is cut badly or the framing is wrong: it waits for you
+            elif verdict == "ok":
                 queue_post(c["id"])
             elif verdict == "skip":
                 skip_clip(c["id"])
         notify.send_clip(c["id"], base_url())
+    if held:
+        notify.send_text(f"🔎 {held} clip{'s' if held > 1 else ''} held back for you to look at: cut mid-sentence or "
+                         "the framing is off. They are above with the reason on each one.")
 
 
 # ----------------------------------------------------------------------------- posting queue
@@ -314,12 +367,30 @@ def set_post_text(clip_id: str, field: str, value: str):
         db.execute("UPDATE posts SET title=? WHERE clip_id=? AND status IN ('waiting','error')", (value.strip()[:100], clip_id))
 
 
+def ready() -> dict:
+    """Is the hands-off chain actually complete? Each answer is a thing you can go and fix."""
+    st = get_settings()
+    steps = [("Autopilot switched on", bool(st.get("enabled")), "turn it on at the top of this page"),
+             ("A channel to watch", bool(st.get("channel_url")), "paste the channel link"),
+             ("YouTube connected", youtube.connected(), "connect your channel"),
+             ("Telegram linked", bool(notify.enabled() and notify.chat_id()), "send /start to your bot"),
+             ("Posts without asking", st.get("mode") == "auto", 'set Posting to "Post by itself"'),
+             ("Claude picking the clips", llm.mode() == "live", "add a workspace Anthropic key")]
+    missing = [(name, how) for name, ok, how in steps if not ok]
+    return {"steps": [{"name": n, "ok": o, "how": h} for n, o, h in steps], "missing": missing,
+            "ok": not missing,
+            "times": ", ".join(sorted(st.get("post_times") or [])), "per_day": st.get("max_posts_per_day")}
+
+
 def status_text() -> str:
     st = get_settings()
     waiting = db.rows("SELECT * FROM posts WHERE status='waiting' ORDER BY publish_at")
     running = db.rows("SELECT title, stage FROM projects WHERE status IN ('running','queued')")
+    r = ready()
     lines = [f"Autopilot: {'on' if st['enabled'] else 'off'} · mode: {st['mode']} · channel: {st['channel_url']}",
-             f"YouTube: {'connected' if youtube.connected() else 'not connected'}"]
+             f"YouTube: {'connected' if youtube.connected() else 'not connected'}",
+             (f"✅ Fully hands off: posting {r['per_day']}× a day at {r['times']}." if r["ok"]
+              else "⚠️ Not hands off yet — " + "; ".join(f"{n} ({h})" for n, h in r["missing"]))]
     for r in running:
         lines.append(f"⏳ {r['title'][:50]} – {r['stage']}")
     for p in waiting:

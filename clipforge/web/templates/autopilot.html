@@ -30,7 +30,9 @@
       <label>Check every (minutes)<input class="input" type="number" name="check_minutes" value="{{ st.check_minutes }}" min="10"></label>
       <label>Clips per episode<input class="input" type="number" name="clips" value="{{ st.clips }}" min="1" max="10"></label>
       <label>Clip length<select class="input" name="length">{% for l in ['auto','short','medium','long'] %}<option value="{{ l }}" {% if st.length == l %}selected{% endif %}>{{ l|capitalize }}</option>{% endfor %}</select></label>
-      <label>Posting<select class="input" name="mode"><option value="ask" {% if st.mode == 'ask' %}selected{% endif %}>Ask me on Telegram for every clip</option><option value="auto" {% if st.mode == 'auto' %}selected{% endif %}>Post 🟢 clips by itself, ask for 🟡, skip 🔴</option></select></label>
+      <label>Posting<select class="input" name="mode"><option value="ask" {% if st.mode == 'ask' %}selected{% endif %}>Ask me on Telegram for every clip</option><option value="auto" {% if st.mode == 'auto' %}selected{% endif %}>Post 🟢 clips by itself, ask for 🟡, skip 🔴</option></select>
+        <span class="muted small">On "by itself", a clip is still held back for you if it is cut mid-sentence or the
+        framing is wrong. Nothing posts unchecked.</span></label>
       <label class="span2">Topic keywords<input class="input" name="keywords" value="{{ st.keywords|join(', ') }}"></label>
       <label>Post times (comma separated, 24h)<input class="input" name="post_times" value="{{ st.post_times|join(', ') }}"></label>
       <label>Time zone<input class="input" name="timezone" value="{{ st.timezone }}"></label>
@@ -43,6 +45,41 @@
   </form>
 </section>
 
+<section class="card">
+  <h3>Is it hands off yet?</h3>
+  <ul class="plain">
+    {% for s in ready.steps %}
+    <li>{{ '🟢' if s.ok else '🔴' }} {{ s.name }}{% if not s.ok %} <span class="muted">— {{ s.how }}</span>{% endif %}</li>
+    {% endfor %}
+  </ul>
+  {% if ready.ok %}
+  <div class="notice">Nothing left to do. New episodes get clipped, checked, and posted {{ ready.per_day }}× a day at {{ ready.times }}.</div>
+  {% else %}
+  <p class="muted small">Every red line above is something only you can do. Until they are all green, clips wait for your tap in Telegram.</p>
+  {% endif %}
+  <p class="muted small">A clip is never posted by itself if it is cut mid-sentence, the speaker's head is cut off, or
+    the fact check says skip. Those wait for you whatever the settings say.</p>
+</section>
+<section class="card">
+  <h3>The channel being watched</h3>
+  <p class="muted small">Checks the link really resolves and shows what would be clipped next. If this is empty,
+    autopilot is quietly doing nothing.</p>
+  <form method="get" action="/autopilot" class="row">
+    <input class="input" name="check_channel" value="{{ st.channel_url }}" style="flex:1;min-width:220px">
+    <button class="btn secondary" type="submit">Check channel</button>
+  </form>
+  {% if chan %}
+  <div class="notice" style="margin-top:12px">{{ '🟢' if chan.ok else '🔴' }} {{ chan.detail }}</div>
+  {% if chan.videos %}
+  <table class="disk">
+    {% for v in chan.videos %}
+    <tr><td><a href="{{ v.url }}" target="_blank" rel="noopener">{{ v.title[:70] }}</a></td>
+      <td class="muted">{{ v.published[:10] }}</td></tr>
+    {% endfor %}
+  </table>
+  {% endif %}
+  {% endif %}
+</section>
 <section class="card">
   <h3>Posting queue</h3>
   {% if posts %}<ul class="plain small">{% for p in posts %}<li>{{ {'waiting':'🕒','uploading':'📤','scheduled':'✅','uploaded':'✅','published':'✅','skipped':'⏭','cancelled':'🚫','error':'❌'}.get(p.status, '·') }} {{ p.when }} · {{ p.clip_title or p.title }}{% if p.youtube_id %} · <a href="https://youtu.be/{{ p.youtube_id }}" target="_blank">youtu.be/{{ p.youtube_id }}</a>{% endif %}{% if p.error %} · <span class="muted">{{ p.error[:120] }}</span>{% endif %}</li>{% endfor %}</ul>

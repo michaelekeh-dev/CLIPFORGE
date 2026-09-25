@@ -2,7 +2,7 @@
 from __future__ import annotations
 import re
 from .config import cfg
-from . import llm
+from . import llm, titles
 from .transcribe import fmt_ts, SENT_END
 
 MOMENT_SCHEMA = {
@@ -49,10 +49,7 @@ MOMENT_SCHEMA = {
     "additionalProperties": False,
 }
 
-TITLE_STYLE = ("Title style (this matters a lot): a YouTube Shorts title that makes people tap, built from the CONTENT of the clip, "
-               "never its opening words. Patterns that work: 'Uncovered: the Bible story about X', 'X said WHAT about Y?', "
-               "'The truth about X nobody talks about', 'Why X actually happened', 'X explains Y in 30 seconds'. "
-               "Name the subject (person, place, book, event). Max 70 characters, no quotes, honest, theories framed as theories.")
+TITLE_STYLE = titles.TITLE_RULES + "\n"
 
 SYSTEM = """You are a senior short-form video editor. You pick the moments from a long talking video that would work
 best as standalone vertical Shorts for a channel about theories, history and Christian faith content.
@@ -127,17 +124,15 @@ def pick_moments(tr: dict, n: int, length: str, keywords: list[str], progress=No
                       "For each moment give: start and end in seconds (use the [timestamps]; end = the moment the LAST "
                       "SENTENCE YOU KEEP finishes — the one carrying the payoff, not the one before it), score 0-100 for "
                       "virality, one short sentence for each reason (hook, payoff, emotion, standalone, topic_match), "
-                      "topic (3 words max), title (" + TITLE_STYLE + "), a 1-2 sentence description that says what the clip is about, "
+                      "topic (3 words max), a 1-2 sentence description that says what the clip is about, "
                       "5-8 hashtags, key_words: 1-3 words spoken in the clip worth highlighting in the captions, and emojis: "
                       "up to 3 pairs of a spoken word plus one fitting emoji (spread out, none is fine), "
-                      "hook: a short curiosity teaser (3-9 words) shown on a card for the first 3 seconds. It must fit THIS "
-                      "clip's content and mood, be honest, and make people stay: for something dark 'no way it gets this dark...', "
-                      "for a surprising fact 'did you know this??', for a theory 'this theory changes everything', for a story "
-                      "'wait for the ending...'. Casual spoken tone, no summary, no clickbait lies. "
+                      "hook (a card shown over the first 3 seconds): " + titles.HOOK_RULES + " "
                       "zooms: 1-3 timestamps in seconds of punchlines or reveals worth a punch-in zoom, "
                       "broll: up to 2 moments where something visual is mentioned (a place, an object, an animal): "
                       "t = the timestamp in seconds, word = the spoken word, query = 2-3 word stock footage search.\n\n"
-                      f"TRANSCRIPT:\n{chunk_text(ch)}")
+                      "\n\n" + TITLE_STYLE +
+                      f"\nTRANSCRIPT:\n{chunk_text(ch)}")
             try:
                 out = llm.ask_json(prompt, system=SYSTEM, model=cfg.get("llm.pick_model"), schema=MOMENT_SCHEMA)
                 for m in out.get("moments", []):
@@ -155,10 +150,12 @@ def pick_moments(tr: dict, n: int, length: str, keywords: list[str], progress=No
         cands = heuristic_pick(tr, n * 3, lo, hi, keywords)
     snapped = []
     for m in cands:
-        s = snap(m, words, lo, hi)
-        if s:
-            snapped.append(s)
-    return dedupe(snapped, n), method
+        sm = snap(m, words, lo, hi)
+        if sm:
+            snapped.append(sm)
+    picked = dedupe(snapped, n)
+    titles.polish_all(picked, keywords)
+    return picked, method
 
 
 def snap(m: dict, words: list[dict], lo: float, hi: float) -> dict | None:
@@ -418,6 +415,7 @@ STOP = set("""a an the and or but so if of to in on at for with from by about in
 is are was were be been being do does did have has had i you he she we they me him her us them my your his our their what which who
 whom whose when where why how not no yes just like really very kind sort thing things gonna wanna got get go going yeah um uh okay
 know think mean say said says one two there here then than too also because as up down out off again more most some any all
+people online thing stuff guy guys man men woman women someone something everyone everybody nothing anything lot lots way ways time times
 """.split())
 
 

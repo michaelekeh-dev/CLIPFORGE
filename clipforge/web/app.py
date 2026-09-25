@@ -421,13 +421,15 @@ def api_use_times():
 
 
 @app.get("/autopilot", response_class=HTMLResponse)
-def autopilot_page(request: Request, msg: str = ""):
+def autopilot_page(request: Request, msg: str = "", check_channel: str = ""):
     st = autopilot.get_settings()
+    chan = autopilot.channel_check(check_channel) if check_channel else None
     posts = db.rows("SELECT p.*, c.title AS clip_title FROM posts p LEFT JOIN clips c ON c.id=p.clip_id ORDER BY p.created_at DESC LIMIT 30")
     for p in posts:
         p["when"] = notify._fmt_time(p["publish_at"]) if p.get("publish_at") else ""
     seen = db.rows("SELECT * FROM seen_videos ORDER BY seen_at DESC LIMIT 10")
-    return page(request, "autopilot.html", st=st, posts=posts, seen=seen, msg=msg,
+    return page(request, "autopilot.html", st=st, posts=posts, seen=seen, msg=msg, chan=chan,
+                ready=autopilot.ready(),
                 yt={"configured": youtube.configured(), "connected": youtube.connected(), "channel": db.get_setting("youtube_channel") or {}},
                 tg={"enabled": notify.enabled(), "chat": bool(notify.chat_id()), **notify.state,
                     "chat_id": notify.chat_id() or ""}, public_url=autopilot.base_url())

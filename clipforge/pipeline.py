@@ -5,7 +5,7 @@ import shutil
 import time
 import os
 from pathlib import Path
-from . import db, media, download, transcribe, moments, factcheck, render, captions, reframe, filler, effects, brand, edits as ed, broll
+from . import db, media, download, transcribe, moments, factcheck, render, captions, reframe, filler, effects, brand, edits as ed, broll, review
 from .config import cfg as _cfg, output_size, env as _env
 from .config import PROJECTS, cfg
 from .timeline import Timeline
@@ -259,6 +259,15 @@ def render_one(cid: str, progress=None) -> dict:
         result["filler"] = {"level": level, "cuts": cuts, "removed_seconds": round(sum(c["e"] - c["s"] for c in cuts), 2)}
         result["zooms"] = zooms
         result["hook"] = {"on": bool(hook_on and hook_text), "text": hook_text}
+        if bool(_cfg.get("review.enabled", True)):
+            try:
+                result["review"] = review.check({**clip, "data": data, "path": str(out)}, words=tr["words"],
+                                                path=str(out), lead_in=tl.lead_in, lead_out=tl.lead_out,
+                                                skip_windows=[(b["s"], b["e"]) for b in broll_items])
+            except Exception as e:  # noqa: BLE001
+                db.log_error("review", str(e))
+                result["review"] = {"verdict": "check", "problems": [{"code": "review_failed", "severity": "check",
+                                                                      "detail": str(e)[:200]}], "checked": []}
         result["reframe"] = {"layout_setting": settings.get("layout", "auto"), "shots": reframe.summary(analysis),
                              "keyframes": framer.keyframes, "lip_reader": analysis.get("lip_reader"),
                              "diarization": analysis.get("diarization")}
@@ -280,7 +289,9 @@ def render_one(cid: str, progress=None) -> dict:
         }
         render.write_json(out_dir / f"clip_{clip['idx']:02d}.json", record)
         db.update("clips", cid, {"status": "done", "stage": "Done", "progress": 100, "path": str(out), "thumbnail": str(thumb),
-                                 "data": {**data, "render": result, "timeline": tl.as_list()}})
+                                 "data": {**data, "render": result, "timeline": tl.as_list(),
+                                          # kept at the top level too: autopilot and Telegram read it on every clip
+                                          "review": result.get("review") or {}}})
         shutil.rmtree(work, ignore_errors=True)
         return record
     except Exception as e:  # noqa: BLE001

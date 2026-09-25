@@ -98,6 +98,11 @@ def clip_caption(clip: dict, post: dict | None, base_url: str) -> str:
         lines.append(_esc(fc["summary"])[:240])
     if fc.get("red_flags"):
         lines.append("⚠️ " + _esc("; ".join(fc["red_flags"])[:240]))
+    if d.get("review"):
+        from . import review as _review
+        rl = _review.line(d["review"])
+        if rl and d["review"].get("verdict") != "good":
+            lines.append(_esc(rl)[:300])
 
     if post:
         if post["status"] == "waiting":
