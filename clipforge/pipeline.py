@@ -43,7 +43,14 @@ def run_project(pid: str, progress) -> None:
     pdir = project_dir(pid)
 
     # 1. source
-    space_check()
+    need = float(_cfg.get("storage.need_free_gb", 3.0))
+    if need * 1e9 > shutil.disk_usage(PROJECTS).free:
+        make_room(keep_pid=pid, reason=proj["title"][:40] or pid)
+        if need * 1e9 > shutil.disk_usage(PROJECTS).free:
+            # still short: let go of clips from old episodes that were never posted or skipped
+            make_room(keep_pid=pid, reason=proj["title"][:40] or pid,
+                      stale_days=float(_cfg.get("storage.undecided_clip_days", 14)))
+    space_check(need)
     progress("Downloading", 1)
     if proj["source_type"] == "url":
         meta = download.download(proj["source_url"], progress)
@@ -116,6 +123,14 @@ def run_project(pid: str, progress) -> None:
             db.log_error(f"clip:{cid}", str(e))  # one bad clip must not sink the episode
     progress("Done", 100)
     db.update("projects", pid, {"status": "done", "progress": 100})
+    # the clips exist now, so the multi-gigabyte download has done its job
+    if bool(_cfg.get("storage.one_episode_at_a_time", True)):
+        try:
+            gone = drop_source(pid) + free_space("safe")
+            if gone:
+                db.log_error("storage", f"episode finished: freed {gone / 1e9:.2f} GB (source + working files)")
+        except Exception as e:  # noqa: BLE001
+            db.log_error("storage", str(e))
     try:
         from . import autopilot
         autopilot.on_project_done(pid)
@@ -378,6 +393,94 @@ def free_space(kind: str = "safe") -> int:
             except OSError:
                 pass
     return freed
+
+
+def inside_projects(path: str | Path) -> bool:
+    """Is this really one of our files? A clip row can hold any path, and cleanup must never follow one out."""
+    try:
+        return Path(path).resolve().is_relative_to(PROJECTS.resolve())
+    except (OSError, ValueError):
+        return False
+
+
+def _unlink_ours(path: str | Path) -> int:
+    """Delete a file only if it sits inside the projects folder. Returns the bytes reclaimed."""
+    f = Path(path)
+    if not inside_projects(f):
+        db.log_error("storage", f"refused to delete {f} - outside the projects folder")
+        return 0
+    try:
+        if f.is_file():
+            n = f.stat().st_size
+            f.unlink()
+            return n
+    except OSError as e:
+        db.log_error("storage", str(e))
+    return 0
+
+
+def clip_is_finished_with(clip_id: str) -> bool:
+    """True when nothing is waiting on this clip's file any more: it is on YouTube, or you skipped it."""
+    post = db.row("SELECT status FROM posts WHERE clip_id=? ORDER BY created_at DESC LIMIT 1", (clip_id,))
+    if not post:
+        return False  # never decided: the Post button in Telegram still needs the file
+    return post["status"] in ("uploaded", "scheduled", "published", "skipped")
+
+
+def pending_clip_ids() -> set[str]:
+    """Clips that must survive any cleanup: queued to post, mid-upload, or still awaiting your tap."""
+    keep = set()
+    for r in db.rows("SELECT clip_id, status FROM posts WHERE status IN ('waiting','uploading','error')"):
+        keep.add(r["clip_id"])
+    for r in db.rows("SELECT id FROM clips WHERE status='done'"):
+        if not clip_is_finished_with(r["id"]):
+            keep.add(r["id"])
+    return keep
+
+
+def make_room(keep_pid: str | None = None, reason: str = "", stale_days: float | None = None) -> dict:
+    """Clear the decks for one episode: every other source video, all working files, and the clip files
+    of clips already posted or skipped. Anything queued to go up is never touched.
+
+    stale_days also clears clips you never decided on from projects older than that, which is what
+    actually reclaims the disk once a pile of untouched episodes has built up. A clip with a post
+    queued or mid-upload survives either way."""
+    freed = free_space("safe")
+    keep = pending_clip_ids()
+    if stale_days is not None:
+        cutoff = time.time() - float(stale_days) * 86400
+        fresh = {r["id"] for r in db.rows(
+            "SELECT c.id AS id FROM clips c JOIN projects p ON p.id = c.project_id WHERE p.created_at >= ?", (cutoff,))}
+        queued = {r["clip_id"] for r in db.rows(
+            "SELECT clip_id FROM posts WHERE status IN ('waiting','uploading','error')")}
+        keep = (keep & fresh) | queued
+    sources = clips = 0
+    for pdir in PROJECTS.glob("*"):
+        if not pdir.is_dir() or pdir.name == keep_pid:
+            continue
+        for f in pdir.glob("source.*"):
+            sources += _unlink_ours(f)
+    for c in db.rows("SELECT id, path, project_id FROM clips WHERE status='done' AND path != ''"):
+        if c["id"] in keep or c["project_id"] == keep_pid:
+            continue
+        clips += _unlink_ours(c["path"])
+    out = {"freed": freed + sources + clips, "work": freed, "sources": sources, "clips": clips,
+           "kept_clips": len(keep), "reason": reason, "stale_days": stale_days}
+    if out["freed"]:
+        db.log_error("storage", f"made room{' for ' + reason if reason else ''}: freed {out['freed'] / 1e9:.2f} GB "
+                                f"(sources {sources / 1e9:.2f}, working {freed / 1e9:.2f}, posted clips {clips / 1e9:.2f}); "
+                                f"{len(keep)} clips still waiting were kept")
+    return out
+
+
+def drop_source(pid: str) -> int:
+    """This episode is clipped, so the multi-gigabyte download is no longer needed."""
+    n = 0
+    for f in (PROJECTS / pid).glob("source.*"):
+        n += _unlink_ours(f)
+    if n:
+        db.update("projects", pid, {"source_path": ""})
+    return n
 
 
 def space_check(need_gb: float = 3.0) -> None:

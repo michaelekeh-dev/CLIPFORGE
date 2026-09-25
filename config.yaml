@@ -35,6 +35,16 @@ transcribe:
   parakeet_url: https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-nemo-parakeet-tdt-0.6b-v2-int8.tar.bz2
   chunk_seconds: 30
 
+storage:
+  # Keep only the episode being worked on: older source videos, working files and the files of clips
+  # already posted or skipped are cleared to make room. Clips still waiting to post are never touched.
+  one_episode_at_a_time: true
+  # Free space needed before an episode is downloaded
+  need_free_gb: 3.0
+  # If that is still not enough, clips you never posted or skipped from episodes older than
+  # this many days are cleared too. Anything queued to post is still kept.
+  undecided_clip_days: 14
+
 review:
   # Read every finished clip back before it is allowed to post by itself
   enabled: true

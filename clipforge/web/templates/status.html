@@ -46,8 +46,18 @@
       <button class="btn secondary" type="submit">Delete sources older than {{ st.delete_days }} days</button></form>
     <form method="post" action="/api/projects/delete-unfinished"><button class="btn danger" type="submit">Delete projects with no finished clips</button></form>
   </div>
-  <p class="muted small">Your clips and transcripts survive all of these. Deleting source videos only means a clip cannot be
-    re-rendered later without uploading the episode again.</p>
+  <div class="row" style="margin-top:12px">
+    <form method="post" action="/api/cleanup"><input type="hidden" name="kind" value="room">
+      <button class="btn primary" type="submit">Make room for one episode</button></form>
+    <form method="post" action="/api/cleanup"><input type="hidden" name="kind" value="room_hard">
+      <button class="btn danger" type="submit">Also drop old clips I never posted</button></form>
+  </div>
+  <p class="muted small"><b>Make room for one episode</b> clears every source video, all working files and the files of
+    clips already posted or skipped. <b>Also drop old clips I never posted</b> goes further and lets go of clips from
+    episodes older than {{ st.undecided_days }} days that you never tapped Post or Skip on. Neither ever deletes a clip
+    that is queued to post — those keep their file until they are on YouTube.</p>
+  <p class="muted small">This now happens by itself: a new episode clears out the last one before it downloads, and a
+    clip's file is deleted the moment it is live on YouTube.</p>
 </section>
 <section class="card">
   <h3>Claude</h3>

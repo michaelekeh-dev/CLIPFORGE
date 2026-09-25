@@ -144,7 +144,14 @@ def channel_check(channel_url: str = "") -> dict:
 def start_project_from_url(url: str, title: str = "") -> str:
     from . import pipeline
     from .jobs import runner
+    from .config import cfg as _c
     st = get_settings()
+    if bool(_c.get("storage.one_episode_at_a_time", True)):
+        # a new episode means the last one is done with: clear it out before downloading gigabytes
+        try:
+            pipeline.make_room(reason=title[:40] or url)
+        except Exception as e:  # noqa: BLE001
+            db.log_error("storage", str(e))
     opts = pipeline.default_options()
     opts.update({"clips": int(st["clips"]), "length": st["length"], "keywords": list(st["keywords"]), "autopilot": True})
     pid = pipeline.create_project(url, opts, title=title)
@@ -337,6 +344,10 @@ def upload_post(p: dict) -> bool:
         st = get_settings()
         r = youtube.upload(clip["path"], title, desc, tags, publish_at=p["publish_at"], public=bool(st.get("public", True)))
         db.update("posts", p["id"], {"status": "scheduled" if r["status"] == "scheduled" else "uploaded", "youtube_id": r["id"], "title": title})
+        if bool(cfg.get("storage.one_episode_at_a_time", True)):
+            # it is on YouTube now; re-render from the editor if you ever need the file back
+            from . import pipeline as _pl
+            _pl._unlink_ours(clip["path"])
         notify.send_text(f"📤 Uploaded <b>{notify._esc(title)}</b> → https://youtu.be/{r['id']}" +
                          (f"\nGoes public {notify._fmt_time(p['publish_at'])}." if r["status"] == "scheduled" else
                           ("\nIt is private until YouTube verifies the API project (see DEPLOY.md), publish it from the YouTube app." if r["status"] == "private" else "")))

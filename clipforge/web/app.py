@@ -357,6 +357,7 @@ def status_info() -> dict:
         "have": {"anthropic": bool(env("ANTHROPIC_API_KEY")), "workspace": bool(llm.workspace_id()), "cookies": bool(env("YTDLP_COOKIES") or env("YTDLP_COOKIES_B64")), "pexels": bool(env("PEXELS_API_KEY")),
                  "hf": bool(env("HF_TOKEN")), "password": bool(env("APP_PASSWORD"))},
         "delete_days": cfg.get("app.delete_sources_after_days", 7), "errors": errors, "build": _build_id(),
+        "undecided_days": cfg.get("storage.undecided_clip_days", 14),
         "pot": download.pot_provider_status(), "js": download.js_solver_status(), "proxy": download.proxy_status(),
     }
 
@@ -385,6 +386,17 @@ def api_status():
 def api_cleanup(kind: str = Form("safe")):
     if kind == "old":
         freed = pipeline.cleanup_old_sources()
+    elif kind == "room":
+        out = pipeline.make_room(reason="you asked")
+        return RedirectResponse(
+            f"/status?msg=Freed {out['freed'] / 1e9:.2f} GB. {out['kept_clips']} clips still waiting to post were kept.",
+            status_code=303)
+    elif kind == "room_hard":
+        days = float(cfg.get("storage.undecided_clip_days", 14))
+        out = pipeline.make_room(reason="you asked", stale_days=days)
+        return RedirectResponse(
+            f"/status?msg=Freed {out['freed'] / 1e9:.2f} GB, including clips older than {days:.0f} days you never "
+            f"posted. {out['kept_clips']} clips still waiting to post were kept.", status_code=303)
     else:
         freed = pipeline.free_space("sources" if kind == "sources" else "safe")
     gb = freed / 1e9
