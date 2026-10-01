@@ -53,7 +53,7 @@ async def save_edits(cid: str, request: Request):
             settings[k] = v
     db.update("clips", cid, {"settings": settings})
     if body.get("render"):
-        runner.submit("clips", cid, lambda prog: pipeline.render_one(cid, prog))
+        runner.submit("clips", cid, "clip")
     return {"ok": True, "settings": settings}
 
 

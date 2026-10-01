@@ -195,7 +195,7 @@ async def api_clip_settings(cid: str, request: Request):
     new = {**(c["settings"] or {}), **{k: v for k, v in body.items() if k in allowed}}
     db.update("clips", cid, {"settings": new})
     if body.get("render"):
-        runner.submit("clips", cid, lambda prog: pipeline.render_one(cid, prog))
+        runner.submit("clips", cid, "clip")
     return {"ok": True, "settings": new}
 
 
@@ -455,7 +455,7 @@ async def api_autopilot_save(request: Request, enabled: str = Form(""), channel_
                              backfill: str = Form(""), queue_days: int = Form(3)):
     times = [t.strip() for t in post_times.split(",") if re_time(t.strip())]
     autopilot.save_settings({"enabled": enabled == "on", "channel_url": channel_url.strip(), "check_minutes": max(10, min(autopilot.MAX_CHECK_MINUTES, int(check_minutes))),
-                             "clips": max(1, min(10, int(clips))), "length": length if length in ("auto", "short", "medium", "long") else "auto",
+                             "clips": max(1, min(25, int(clips))), "length": length if length in ("auto", "short", "medium", "long") else "auto",
                              "keywords": [k.strip() for k in keywords.split(",") if k.strip()], "mode": mode if mode in ("ask", "auto") else "ask",
                              "post_times": times or ["12:00"], "timezone": timezone.strip() or "Europe/London",
                              "max_posts_per_day": max(1, min(10, int(max_posts_per_day))), "description_footer": description_footer,
@@ -678,7 +678,7 @@ async def api_create_project(request: Request, url: str = Form(""), clips: int =
     else:
         raise HTTPException(400, "Paste a link or choose a file")
     pid = pipeline.create_project(source, opts, title=title)
-    runner.submit("projects", pid, lambda prog: pipeline.run_project(pid, prog))
+    runner.submit("projects", pid, "project")
     return {"id": pid}
 
 
@@ -687,7 +687,7 @@ def api_retry(pid: str):
     p = db.row("SELECT * FROM projects WHERE id=?", (pid,))
     if not p:
         raise HTTPException(404)
-    runner.submit("projects", pid, lambda prog: pipeline.run_project(pid, prog))
+    runner.submit("projects", pid, "project")
     return {"ok": True}
 
 
@@ -702,7 +702,7 @@ def api_render_clip(cid: str):
     c = db.row("SELECT * FROM clips WHERE id=?", (cid,))
     if not c:
         raise HTTPException(404)
-    runner.submit("clips", cid, lambda prog: pipeline.render_one(cid, prog))
+    runner.submit("clips", cid, "clip")
     return {"ok": True}
 
 

@@ -5,14 +5,14 @@ import threading
 import time
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
-from . import db, notify, youtube, review, llm
+from . import db, notify, youtube, review, llm, download
 from .config import cfg, env
 
 DEFAULTS = {
     "enabled": False,
     "channel_url": "https://www.youtube.com/@JumpersJump",
     "check_minutes": 60,
-    "clips": 5,
+    "clips": 15,
     "length": "auto",
     "keywords": list(cfg.get("moments.default_keywords", [])),
     "min_episode_minutes": 15,
@@ -155,7 +155,7 @@ def start_project_from_url(url: str, title: str = "") -> str:
     opts = pipeline.default_options()
     opts.update({"clips": int(st["clips"]), "length": st["length"], "keywords": list(st["keywords"]), "autopilot": True})
     pid = pipeline.create_project(url, opts, title=title)
-    runner.submit("projects", pid, lambda prog: pipeline.run_project(pid, prog))
+    runner.submit("projects", pid, "project")
     return pid
 
 
@@ -171,14 +171,23 @@ def check_channel_once() -> list[str]:
         db.log_error("autopilot", f"feed: {e}")
         return []
     first_run = not db.row("SELECT 1 FROM seen_videos LIMIT 1")
-    for v in feed[:10]:
+    newest_episode = None  # on the first look only one episode is clipped — and it must be an episode,
+    for v in feed[:10]:    # not whichever Short happened to be posted most recently
         if db.row("SELECT 1 FROM seen_videos WHERE video_id=?", (v["id"],)):
             continue
-        if first_run and v is not feed[0]:
-            # on the very first check only the newest episode is taken; older ones are just marked as seen
-            db.insert("seen_videos", {"video_id": v["id"], "title": v["title"], "seen_at": time.time(), "project_id": ""})
-            continue
         if _looks_like_short(v):
+            db.insert("seen_videos", {"video_id": v["id"], "title": v["title"], "seen_at": time.time(), "project_id": "short"})
+            continue
+        why = episode_problem(v["url"], v["title"])
+        if why:
+            # remembered as handled, so it is never looked at again
+            db.insert("seen_videos", {"video_id": v["id"], "title": v["title"], "seen_at": time.time(), "project_id": "short"})
+            db.log_error("autopilot", f"skipped {v['title'][:60]}: {why}")
+            continue
+        if newest_episode is None:
+            newest_episode = v["id"]
+        elif first_run:
+            # the rest are the back catalogue: remembered now, clipped later when the queue runs low
             db.insert("seen_videos", {"video_id": v["id"], "title": v["title"], "seen_at": time.time(), "project_id": ""})
             continue
         pid = start_project_from_url(v["url"], title=v["title"])
@@ -189,7 +198,29 @@ def check_channel_once() -> list[str]:
 
 
 def _looks_like_short(v: dict) -> bool:
-    return bool(re.search(r"#shorts?\b", v.get("title", ""), re.I))
+    """What we can tell from the feed alone: the hashtag, or a /shorts/ link."""
+    if re.search(r"#shorts?\b", v.get("title", ""), re.I):
+        return True
+    return "/shorts/" in (v.get("url") or "")
+
+
+def episode_problem(url: str, title: str = "") -> str:
+    """Why this video is not an episode, or '' when it is one.
+
+    The feed lists a channel's Shorts next to its episodes, and a Short is already a finished vertical
+    video. Clipping one just burns an hour of CPU to put our subtitles over someone else's edit."""
+    st = get_settings()
+    info = download.peek(url)
+    if not info:
+        return ""  # cannot tell without downloading it; let the normal flow decide
+    mins = info.get("duration", 0) / 60
+    low = float(st.get("min_episode_minutes", 15) or 0)
+    if info.get("vertical"):
+        return (f"it is already a vertical video ({info['width']}x{info['height']}) — that is a Short, "
+                "not an episode")
+    if low and mins and mins < low:
+        return f"it is only {mins:.0f} minutes long, and an episode is at least {low:.0f}"
+    return ""
 
 
 # ----------------------------------------------------------------------------- when a project finishes
@@ -247,7 +278,18 @@ def backfill_once() -> str | None:
         return None
     if db.row("SELECT 1 FROM projects WHERE status IN ('running','queued') LIMIT 1"):
         return None  # something is already being clipped; do not pile up downloads
-    nxt = next((v for v in backlog() if not _looks_like_short(v)), None)
+    nxt = None
+    for v in backlog():
+        if _looks_like_short(v):
+            db.execute("UPDATE seen_videos SET project_id='short' WHERE video_id=?", (v["video_id"],))
+            continue
+        why = episode_problem(f"https://www.youtube.com/watch?v={v['video_id']}", v.get("title") or "")
+        if why:
+            db.execute("UPDATE seen_videos SET project_id='short' WHERE video_id=?", (v["video_id"],))
+            db.log_error("autopilot", f"skipped {(v.get('title') or '')[:60]}: {why}")
+            continue
+        nxt = v
+        break
     if not nxt:
         return None
     url = f"https://www.youtube.com/watch?v={nxt['video_id']}"

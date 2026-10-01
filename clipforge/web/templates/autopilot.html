@@ -28,7 +28,7 @@
       <label class="check span2"><input type="checkbox" name="enabled" {% if st.enabled %}checked{% endif %}> Autopilot on (check the channel and clip new episodes by itself)</label>
       <label class="span2">Channel to watch<input class="input" name="channel_url" value="{{ st.channel_url }}" placeholder="https://www.youtube.com/@JumpersJump"></label>
       <label>Check every (minutes)<input class="input" type="number" name="check_minutes" value="{{ st.check_minutes }}" min="10"></label>
-      <label>Clips per episode<input class="input" type="number" name="clips" value="{{ st.clips }}" min="1" max="10"></label>
+      <label>Clips per episode<input class="input" type="number" name="clips" value="{{ st.clips }}" min="1" max="25"></label>
       <label>Clip length<select class="input" name="length">{% for l in ['auto','short','medium','long'] %}<option value="{{ l }}" {% if st.length == l %}selected{% endif %}>{{ l|capitalize }}</option>{% endfor %}</select></label>
       <label>Posting<select class="input" name="mode"><option value="ask" {% if st.mode == 'ask' %}selected{% endif %}>Ask me on Telegram for every clip</option><option value="auto" {% if st.mode == 'auto' %}selected{% endif %}>Post 🟢 clips by itself, ask for 🟡, skip 🔴</option></select>
         <span class="muted small">On "by itself", a clip is still held back for you if it is cut mid-sentence or the

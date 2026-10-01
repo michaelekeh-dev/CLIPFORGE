@@ -277,6 +277,28 @@ def proxy_status() -> dict:
     return out
 
 
+def peek(url: str) -> dict:
+    """Duration and shape of a video without downloading it. {} when it cannot be read."""
+    import yt_dlp
+    opts = {"quiet": True, "no_warnings": True, "skip_download": True, **_js_opts(), **_net_opts()}
+    ck = _cookie_file()
+    if ck:
+        opts["cookiefile"] = ck
+    px = proxy_url()
+    if px:
+        opts["proxy"] = px
+    try:
+        with yt_dlp.YoutubeDL(opts) as ydl:
+            info = ydl.sanitize_info(ydl.extract_info(url, download=False))
+    except Exception as e:  # noqa: BLE001
+        db.log_error("download", f"peek: {str(e)[:200]}")
+        return {}
+    w, h = info.get("width") or 0, info.get("height") or 0
+    return {"id": info.get("id", ""), "title": info.get("title", ""), "duration": float(info.get("duration") or 0),
+            "width": w, "height": h, "vertical": bool(w and h and h > w),
+            "url": info.get("webpage_url") or url}
+
+
 def diagnose(url: str) -> dict:
     """What the server can actually see for this link: cookies, token helper, and the formats offered."""
     import yt_dlp
