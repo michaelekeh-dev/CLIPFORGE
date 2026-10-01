@@ -512,10 +512,25 @@ def _loop():
 MAX_CHECK_MINUTES = 1440
 
 
+def apply_once(name: str, changes: dict) -> bool:
+    """Make a settings change a single time, ever. Recorded, so a later choice of yours is not overruled."""
+    done = list(db.get_setting("autopilot_migrations") or [])
+    if name in done:
+        return False
+    save_settings(changes)
+    db.set_setting("autopilot_migrations", sorted(set(done) | {name}))
+    return True
+
+
 def fix_impossible_settings() -> list[str]:
     """Repair settings that cannot do what they were set for. Runs once on startup."""
     st = get_settings()
     fixed = []
+    # the form used to cap this at 10, so the saved value is a limit of the old UI, not a choice.
+    # raised once to 15, never lowered, and never touched again after that.
+    want = max(15, int(st.get("clips", 0) or 0))
+    if int(st.get("clips", 0) or 0) < 15 and apply_once("clips_at_least_15", {"clips": want}):
+        fixed.append(f"clips per episode {st.get('clips')} -> {want} (the old form would not allow more than 10)")
     if float(st.get("check_minutes") or 60) > MAX_CHECK_MINUTES:
         was = st["check_minutes"]
         save_settings({"check_minutes": 60})

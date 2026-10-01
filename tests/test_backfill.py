@@ -129,7 +129,7 @@ def test_a_check_interval_of_days_is_repaired_on_startup(clean):
     """10000 minutes is a week between checks. Nobody means that, so it is put back to hourly."""
     autopilot.save_settings({"check_minutes": 10000})
     fixed = autopilot.fix_impossible_settings()
-    assert fixed and "10000" in fixed[0]
+    assert any("10000" in f for f in fixed), fixed
     assert autopilot.get_settings()["check_minutes"] == 60
 
 
@@ -150,3 +150,27 @@ def test_the_form_cannot_take_an_impossible_interval_either(clean):
         "backfill": "on", "queue_days": "3"}, follow_redirects=False)
     assert autopilot.get_settings()["check_minutes"] == autopilot.MAX_CHECK_MINUTES
     autopilot.save_settings({"check_minutes": 60})
+
+
+def test_clips_per_episode_is_raised_once_off_the_old_cap(clean):
+    """The saved 10 was the old form's limit, not a decision. Raised once — and only once."""
+    db.execute("DELETE FROM settings WHERE key='autopilot_migrations'")
+    autopilot.save_settings({"clips": 10})
+    assert any("clips per episode" in f for f in autopilot.fix_impossible_settings())
+    assert autopilot.get_settings()["clips"] == 15
+
+    # you then choose something else: startup must leave it alone from now on
+    autopilot.save_settings({"clips": 8})
+    assert autopilot.fix_impossible_settings() == []
+    assert autopilot.get_settings()["clips"] == 8
+    db.execute("DELETE FROM settings WHERE key='autopilot_migrations'")
+    autopilot.save_settings({"clips": 15})
+
+
+def test_a_higher_setting_is_never_lowered(clean):
+    db.execute("DELETE FROM settings WHERE key='autopilot_migrations'")
+    autopilot.save_settings({"clips": 20})
+    autopilot.fix_impossible_settings()
+    assert autopilot.get_settings()["clips"] == 20
+    db.execute("DELETE FROM settings WHERE key='autopilot_migrations'")
+    autopilot.save_settings({"clips": 15})
