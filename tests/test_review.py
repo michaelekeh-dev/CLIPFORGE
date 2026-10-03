@@ -133,10 +133,14 @@ def test_a_badly_cut_clip_is_held_back_from_auto_posting(tmp_path, monkeypatch):
     for cid, data, score in (("c_good", good, 90), ("c_bad", bad, 95)):
         db.insert("clips", {"id": cid, "project_id": "p_rev", "status": "done", "start": 0, "end": 30,
                             "score": score, "title": cid, "path": "x.mp4", "data": json.dumps(data), "settings": "{}"})
-    autopilot.on_project_done("p_rev")
-
-    assert queued == ["c_good"], "only the clean clip should have been queued"
-    assert any("held back" in t for t in sent), "you should be told why the other one was not posted"
+    try:
+        autopilot.on_project_done("p_rev")
+        assert queued == ["c_good"], "only the clean clip should have been queued"
+        assert any("held back" in t for t in sent), "you should be told why the other one was not posted"
+    finally:
+        # leaving 'done' clips behind makes other tests think the app is busy
+        db.execute("DELETE FROM clips WHERE project_id='p_rev'")
+        db.execute("DELETE FROM projects WHERE id='p_rev'")
 
 
 def test_a_transcript_with_no_punctuation_does_not_block_every_clip():

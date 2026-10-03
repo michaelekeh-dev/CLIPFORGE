@@ -174,3 +174,58 @@ def test_a_higher_setting_is_never_lowered(clean):
     assert autopilot.get_settings()["clips"] == 20
     db.execute("DELETE FROM settings WHERE key='autopilot_migrations'")
     autopilot.save_settings({"clips": 15})
+
+
+def test_clearing_the_waiting_pile_skips_them_and_frees_the_files(clean, tmp_path):
+    """24 clips sitting undecided: skip the lot and give the disk back, without touching the queue."""
+    from clipforge.config import PROJECTS
+    d = PROJECTS / "p_bf_wait" / "clips"
+    d.mkdir(parents=True, exist_ok=True)
+    db.execute("DELETE FROM projects WHERE id='p_bf_wait'")
+    db.insert("projects", {"id": "p_bf_wait", "title": "ep", "status": "done", "options": "{}", "info": "{}"})
+    files = []
+    for i in range(3):
+        f = d / f"c{i}.mp4"
+        f.write_bytes(b"x" * 2048)
+        files.append(f)
+        db.execute("DELETE FROM clips WHERE id=?", (f"c_bf_w{i}",))
+        db.insert("clips", {"id": f"c_bf_w{i}", "project_id": "p_bf_wait", "status": "done", "start": 0, "end": 30,
+                            "title": f"t{i}", "path": str(f), "data": "{}", "settings": "{}"})
+    # one of them is already queued to post, so it must survive
+    db.insert("posts", {"id": "post_bf_keep", "clip_id": "c_bf_w0", "project_id": "p_bf_wait", "status": "waiting",
+                        "publish_at": time.time() + 3600, "title": "t0"})
+    mine = {"c_bf_w0", "c_bf_w1", "c_bf_w2"}
+    try:
+        before = {c["id"] for c in autopilot.waiting_clips()}
+        assert mine & before == {"c_bf_w1", "c_bf_w2"}, "the queued one is not waiting on a decision"
+        autopilot.clear_waiting_clips()
+        after = {c["id"] for c in autopilot.waiting_clips()}
+        assert not (mine & after), "every clip that was waiting should now be skipped"
+        assert files[0].exists(), "a queued clip keeps its file"
+        assert not files[1].exists() and not files[2].exists()
+    finally:
+        from clipforge import pipeline
+        pipeline.delete_project("p_bf_wait")
+
+
+def test_an_empty_backlog_pulls_older_videos_from_the_channel(clean, monkeypatch):
+    """What the owner asked for: nothing recorded to fall back on, so go and ask the channel."""
+    feed = [{"id": "old1", "title": "EP.300", "url": "https://youtu.be/old1", "published": "2026-08-01"},
+            {"id": "old2", "title": "teaser #shorts", "url": "https://youtu.be/old2", "published": "2026-08-02"}]
+    monkeypatch.setattr(autopilot, "channel_feed", lambda url: feed)
+    monkeypatch.setattr(autopilot, "episode_problem", lambda url, title="": "")
+    settings(monkeypatch, backfill=True, queue_days=3)
+    assert autopilot.backlog() == []
+    pid = autopilot.backfill_once()
+    assert pid and clean == [("https://www.youtube.com/watch?v=old1", "EP.300")]
+    assert db.row("SELECT project_id FROM seen_videos WHERE video_id='old2'")["project_id"] == "short"
+
+
+def test_asking_for_an_older_episode_ignores_the_queue_depth(clean, monkeypatch):
+    settings(monkeypatch, backfill=True, queue_days=3)
+    monkeypatch.setattr(autopilot, "episode_problem", lambda url, title="": "")
+    monkeypatch.setattr(autopilot, "channel_feed", lambda url: [])
+    db.insert("seen_videos", {"video_id": "oldX", "title": "EP.299", "seen_at": time.time(), "project_id": ""})
+    queue(20)  # ten days lined up: normal backfill would refuse
+    assert autopilot.backfill_once() is None
+    assert autopilot.backfill_once(force=True) is not None, "/older is you asking, so it goes ahead"

@@ -74,25 +74,31 @@ def test_the_last_error_is_included(wired):
     assert "second line" not in why, "one line is enough"
 
 
-def test_the_heartbeat_stays_quiet_when_clips_are_flowing(wired):
-    db.insert("clips", {"id": "c_hb_new", "project_id": "p", "status": "done", "start": 0, "end": 10,
-                        "title": "t", "data": "{}", "settings": "{}"})
-    try:
-        assert autopilot.heartbeat() == ""
-        assert wired == [], "do not message when it is working"
-    finally:
-        db.execute("DELETE FROM clips WHERE id='c_hb_new'")
+def quiet_since(monkeypatch, hours):
+    """Pretend the last clip landed `hours` ago, whatever else is in the database."""
+    t = time.time() - hours * 3600
+    monkeypatch.setattr(autopilot, "last_activity",
+                        lambda: {"channel_check": time.time() - 600, "clip_made": t, "posted": t,
+                                 "project_started": t})
 
 
-def test_the_heartbeat_speaks_up_after_a_day_of_nothing(wired):
+def test_the_heartbeat_stays_quiet_when_clips_are_flowing(wired, monkeypatch):
+    quiet_since(monkeypatch, 2)
+    assert autopilot.heartbeat() == ""
+    assert wired == [], "do not message when it is working"
+
+
+def test_the_heartbeat_speaks_up_after_a_day_of_nothing(wired, monkeypatch):
     db.set_setting("last_channel_check", time.time() - 600)
+    quiet_since(monkeypatch, 30)
     out = autopilot.heartbeat()
     assert out and len(wired) == 1
     assert "Nothing posted in the last day" in wired[0]
 
 
-def test_the_heartbeat_does_not_nag_more_than_once_a_day(wired):
+def test_the_heartbeat_does_not_nag_more_than_once_a_day(wired, monkeypatch):
     db.set_setting("last_channel_check", time.time() - 600)
+    quiet_since(monkeypatch, 30)
     autopilot.heartbeat()
     assert len(wired) == 1
     autopilot.heartbeat()

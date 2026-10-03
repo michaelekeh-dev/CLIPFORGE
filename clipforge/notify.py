@@ -226,6 +226,14 @@ def handle_update(u: dict, base_url: str):
             send_text("Linked. Every finished clip lands here with its title, its description and buttons: Post now, Schedule, edit the title or the description, or Skip.\nCommands: /status, /why (if it ever goes quiet), /stats, /post <link>, /pause, /resume", chat)
         elif text.startswith("/status"):
             send_text(autopilot.status_text(), chat)
+        elif text.startswith("/skipall"):
+            n = autopilot.clear_waiting_clips()
+            send_text(f"Skipped {n} clip{'s' if n != 1 else ''} that were waiting for a decision, and freed the "
+                      "space they were using. Queued and posted clips were left alone.", chat)
+        elif text.startswith("/older"):
+            pid = autopilot.backfill_once(force=True)
+            send_text(f"Clipping an older episode now.\n{base_url}/project/{pid}" if pid else
+                      "No older episode to fall back on — /why explains what is missing.", chat)
         elif text.startswith("/why") or text.startswith("/quiet"):
             why = autopilot.why_quiet()
             send_text(_esc(why) if why else "✅ Nothing wrong — clips are queued and going up on schedule.", chat)
@@ -241,7 +249,7 @@ def handle_update(u: dict, base_url: str):
             pid = autopilot.start_project_from_url(url)
             send_text(f"Started. I'll send the clips when they're ready.\n{base_url}/project/{pid}", chat)
         elif text.startswith("/help"):
-            send_text("/status – what's going on\n/why – why nothing has arrived\n/stats – your channel numbers and when to post\n/post <youtube link> – clip an episode now\n/pause /resume – autopilot", chat)
+            send_text("/status – what's going on\n/why – why nothing has arrived\n/older – clip an older episode now\n/skipall – skip every clip waiting for a decision\n/stats – your channel numbers and when to post\n/post <youtube link> – clip an episode now\n/pause /resume – autopilot", chat)
         return
     if "callback_query" in u:
         q = u["callback_query"]

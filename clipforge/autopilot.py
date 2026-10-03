@@ -59,14 +59,31 @@ def channel_feed(channel_url: str) -> list[dict]:
     import httpx
     import xml.etree.ElementTree as ET
     cid = db.get_setting("channel_id:" + channel_url)
+    if cid and not valid_channel_id(cid):
+        db.log_error("autopilot", f"cached channel id {cid!r} is malformed ({len(cid)} characters, not 24) — resolving again")
+        db.execute("DELETE FROM settings WHERE key=?", ("channel_id:" + channel_url,))
+        cid = None
     if not cid:
         cid = resolve_channel_id(channel_url)
         if cid:
             db.set_setting("channel_id:" + channel_url, cid)
     if not cid:
         return []
-    r = httpx.get(f"https://www.youtube.com/feeds/videos.xml?channel_id={cid}", timeout=30,
-                  headers={"User-Agent": "Mozilla/5.0"})
+
+    def fetch(c):
+        return httpx.get(f"https://www.youtube.com/feeds/videos.xml?channel_id={c}", timeout=30,
+                         headers={"User-Agent": "Mozilla/5.0"})
+
+    r = fetch(cid)
+    if r.status_code == 404:
+        # YouTube does not know this channel: the id is wrong however well formed it looks
+        db.log_error("autopilot", f"feed 404 for channel id {cid} — forgetting it and resolving again")
+        db.execute("DELETE FROM settings WHERE key=?", ("channel_id:" + channel_url,))
+        again = resolve_channel_id(channel_url)
+        if not again or again == cid:
+            return []
+        db.set_setting("channel_id:" + channel_url, again)
+        r = fetch(again)
     r.raise_for_status()
     ns = {"a": "http://www.w3.org/2005/Atom", "yt": "http://www.youtube.com/xml/schemas/2015"}
     out = []
@@ -77,15 +94,24 @@ def channel_feed(channel_url: str) -> list[dict]:
     return out
 
 
+CHANNEL_ID = re.compile(r"^UC[A-Za-z0-9_-]{22}$")
+
+
+def valid_channel_id(cid: str) -> bool:
+    """A YouTube channel id is UC plus exactly 22 characters. Anything else 404s the feed forever."""
+    return bool(CHANNEL_ID.match((cid or "").strip()))
+
+
 def resolve_channel_id(channel_url: str) -> str | None:
     """The UC... id behind a channel link. Tries the cheap ways first so a blocked yt-dlp is not the end of it."""
     url = (channel_url or "").strip()
     if not url:
         return None
-    if url.startswith("UC") and len(url) > 20:
+    if valid_channel_id(url):
         return url
     if "channel/" in url:
-        return url.rstrip("/").split("channel/")[-1].split("/")[0]
+        got = url.rstrip("/").split("channel/")[-1].split("/")[0]
+        return got if valid_channel_id(got) else None
     # the channel page carries its own id, and a plain page fetch works where the API page is blocked
     try:
         import httpx
@@ -95,10 +121,13 @@ def resolve_channel_id(channel_url: str) -> str | None:
         r = httpx.get(url.rstrip("/"), timeout=30, follow_redirects=True,
                       headers={"User-Agent": "Mozilla/5.0", "Accept-Language": "en-US,en;q=0.9"},
                       **({"proxy": px} if px else {}))
-        m = _re.search(r'"(?:channelId|externalId)"\s*:\s*"(UC[\w-]{20,})"', r.text) or \
-            _re.search(r'channel/(UC[\w-]{20,})', r.text)
-        if m:
-            return m.group(1)
+        # exactly 22 characters after UC, and a boundary after them: a loose {20,} once captured a
+        # truncated id, cached it, and every feed fetch 404'd from then on
+        for pat in (r'"(?:channelId|externalId)"\s*:\s*"(UC[A-Za-z0-9_-]{22})"',
+                    r'channel/(UC[A-Za-z0-9_-]{22})(?![A-Za-z0-9_-])'):
+            m = _re.search(pat, r.text)
+            if m and valid_channel_id(m.group(1)):
+                return m.group(1)
     except Exception as e:  # noqa: BLE001
         db.log_error("autopilot", f"channel page: {str(e)[:200]}")
     try:
@@ -110,7 +139,10 @@ def resolve_channel_id(channel_url: str) -> str | None:
             opts["cookiefile"] = ck
         with yt_dlp.YoutubeDL(opts) as ydl:
             info = ydl.extract_info(url.rstrip("/") + "/videos", download=False)
-        return info.get("channel_id") or info.get("uploader_id") or (info.get("id") if str(info.get("id", "")).startswith("UC") else None)
+        for cand in (info.get("channel_id"), info.get("uploader_id"), info.get("id")):
+            if valid_channel_id(str(cand or "")):
+                return str(cand)
+        return None
     except Exception as e:  # noqa: BLE001
         db.log_error("autopilot", f"channel id: {str(e)[:200]}")
         return None
@@ -270,17 +302,32 @@ def backlog() -> list[dict]:
     return db.rows("SELECT * FROM seen_videos WHERE (project_id IS NULL OR project_id='') ORDER BY rowid")
 
 
-def backfill_once() -> str | None:
-    """When the queue runs low, clip one more of the channel's older episodes. One at a time."""
+def backfill_once(force: bool = False) -> str | None:
+    """When the queue runs low, clip one more of the channel's older episodes. One at a time.
+
+    `force` is you asking for one now (Telegram /older), so the queue-depth check is skipped."""
     st = get_settings()
-    if not (st.get("enabled") and st.get("backfill")):
+    if not force and not (st.get("enabled") and st.get("backfill")):
         return None
-    if days_queued() >= float(st.get("queue_days", 3) or 3):
+    if not force and days_queued() >= float(st.get("queue_days", 3) or 3):
         return None
     if db.row("SELECT 1 FROM projects WHERE status IN ('running','queued') LIMIT 1"):
         return None  # something is already being clipped; do not pile up downloads
+    pool = backlog()
+    if not pool:
+        # nothing recorded to fall back on: ask the channel for its older videos and use one we have
+        # never clipped. This is what makes a quiet week fill itself in from the back catalogue.
+        try:
+            for v in channel_feed(st.get("channel_url") or ""):
+                if db.row("SELECT 1 FROM seen_videos WHERE video_id=?", (v["id"],)):
+                    continue
+                db.insert("seen_videos", {"video_id": v["id"], "title": v["title"], "seen_at": time.time(),
+                                          "project_id": "short" if _looks_like_short(v) else ""})
+            pool = backlog()
+        except Exception as e:  # noqa: BLE001
+            db.log_error("autopilot", f"backfill feed: {str(e)[:200]}")
     nxt = None
-    for v in backlog():
+    for v in pool:
         if _looks_like_short(v):
             db.execute("UPDATE seen_videos SET project_id='short' WHERE video_id=?", (v["video_id"],))
             continue
@@ -299,6 +346,23 @@ def backfill_once() -> str | None:
     notify.send_text(f"📼 Queue was getting low, so I'm clipping an older episode: "
                      f"<b>{notify._esc(nxt.get('title') or nxt['video_id'])}</b>")
     return pid
+
+
+def waiting_clips() -> list[dict]:
+    """Finished clips you have never tapped Post or Skip on."""
+    return db.rows("SELECT * FROM clips WHERE status='done' AND id NOT IN (SELECT clip_id FROM posts) "
+                   "ORDER BY created_at")
+
+
+def clear_waiting_clips() -> int:
+    """Skip every clip still waiting for a decision, and free the disk they were holding."""
+    from . import pipeline
+    n = 0
+    for c in waiting_clips():
+        skip_clip(c["id"])
+        pipeline._unlink_ours(c.get("path") or "")
+        n += 1
+    return n
 
 
 def next_slot(after: float | None = None) -> float:
