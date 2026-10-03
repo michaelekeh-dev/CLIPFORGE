@@ -7,6 +7,8 @@ app:
   port: 8000
   # How many render jobs run at the same time. 1 is right for a small CPU box.
   workers: 1
+  # Once a day, if nothing has been clipped or posted, say why on Telegram instead of going silent
+  heartbeat: true
   # Source videos older than this are deleted automatically (clips are kept).
   delete_sources_after_days: 7
   # Set true when the app is served over https (cookie gets the Secure flag)

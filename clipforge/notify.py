@@ -223,9 +223,12 @@ def handle_update(u: dict, base_url: str):
             return
         if text.startswith("/start"):
             db.set_setting("telegram_chat_id", chat)
-            send_text("Linked. Every finished clip lands here with its title, its description and buttons: Post now, Schedule, edit the title or the description, or Skip.\nCommands: /status, /stats, /post <link> (start a new episode), /pause, /resume", chat)
+            send_text("Linked. Every finished clip lands here with its title, its description and buttons: Post now, Schedule, edit the title or the description, or Skip.\nCommands: /status, /why (if it ever goes quiet), /stats, /post <link>, /pause, /resume", chat)
         elif text.startswith("/status"):
             send_text(autopilot.status_text(), chat)
+        elif text.startswith("/why") or text.startswith("/quiet"):
+            why = autopilot.why_quiet()
+            send_text(_esc(why) if why else "✅ Nothing wrong — clips are queued and going up on schedule.", chat)
         elif text.startswith("/stats") or text.startswith("/numbers"):
             from . import analytics
             send_text(analytics.text(), chat)
@@ -238,7 +241,7 @@ def handle_update(u: dict, base_url: str):
             pid = autopilot.start_project_from_url(url)
             send_text(f"Started. I'll send the clips when they're ready.\n{base_url}/project/{pid}", chat)
         elif text.startswith("/help"):
-            send_text("/status – what's going on\n/stats – your channel numbers and when to post\n/post <youtube link> – clip an episode now\n/pause /resume – autopilot", chat)
+            send_text("/status – what's going on\n/why – why nothing has arrived\n/stats – your channel numbers and when to post\n/post <youtube link> – clip an episode now\n/pause /resume – autopilot", chat)
         return
     if "callback_query" in u:
         q = u["callback_query"]

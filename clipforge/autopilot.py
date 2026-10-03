@@ -170,6 +170,7 @@ def check_channel_once() -> list[str]:
     except Exception as e:  # noqa: BLE001
         db.log_error("autopilot", f"feed: {e}")
         return []
+    db.set_setting("last_channel_check", time.time())
     first_run = not db.row("SELECT 1 FROM seen_videos LIMIT 1")
     newest_episode = None  # on the first look only one episode is clipped — and it must be an episode,
     for v in feed[:10]:    # not whichever Short happened to be posted most recently
@@ -491,16 +492,91 @@ def status_text() -> str:
 
 
 # ----------------------------------------------------------------------------- threads
+def last_activity() -> dict:
+    """When each part of the chain last did something."""
+    def when(sql, args=()):
+        r = db.row(sql, args)
+        return float((r or {}).get("t") or 0)
+    return {
+        "channel_check": float(db.get_setting("last_channel_check") or 0),
+        "clip_made": when("SELECT MAX(created_at) AS t FROM clips WHERE status='done'"),
+        "posted": when("SELECT MAX(updated_at) AS t FROM posts WHERE status IN ('uploaded','scheduled','published')"),
+        "project_started": when("SELECT MAX(created_at) AS t FROM projects"),
+    }
+
+
+def why_quiet() -> str:
+    """One honest paragraph on why nothing is arriving, or '' when the chain is working."""
+    st = get_settings()
+    if not st.get("enabled"):
+        return "Autopilot is switched off, so nothing is being clipped. Turn it on on the Autopilot page."
+    r = ready()
+    if r["missing"]:
+        return ("Autopilot cannot run on its own yet — " +
+                "; ".join(f"{n} ({h})" for n, h in r["missing"]) + ".")
+    act = last_activity()
+    now = time.time()
+    queued = days_queued()
+    waiting_clips = (db.row("SELECT COUNT(*) AS n FROM clips WHERE status='done' AND id NOT IN "
+                            "(SELECT clip_id FROM posts)") or {}).get("n", 0)
+    stale_check = act["channel_check"] and now - act["channel_check"] > 3 * 3600
+    never_checked = not act["channel_check"]
+    bits = []
+    if never_checked:
+        bits.append("the channel has never been checked, so the watcher is not running — the app may not have "
+                    "restarted since this was set up")
+    elif stale_check:
+        bits.append(f"the channel was last checked {(now - act['channel_check']) / 3600:.0f} hours ago, which is "
+                    f"longer than the {st.get('check_minutes')} minute setting — the watcher looks stuck")
+    if queued > 0:
+        bits.append(f"{queued} days of posts are already lined up, so no new episode is being clipped on purpose")
+    elif not backlog():
+        bits.append("nothing is queued and there are no older episodes left to fall back on, so there is nothing "
+                    "to post until the channel puts out something new")
+    if waiting_clips:
+        bits.append(f"{waiting_clips} clips are sitting in Telegram waiting for you to tap Post or Skip")
+    err = db.row("SELECT message, at FROM errors WHERE where_ LIKE 'autopilot%' OR where_ LIKE 'projects%' "
+                 "ORDER BY id DESC LIMIT 1")
+    if err and now - float(err["at"] or 0) < 48 * 3600:
+        bits.append("the last thing that went wrong was: " + str(err["message"]).split("\n")[0][:200])
+    if not bits:
+        return ""
+    return "Nothing has arrived because " + "; and ".join(bits) + "."
+
+
+def heartbeat() -> str:
+    """Once a day, if nothing is arriving, say why instead of going silent. Returns what was sent."""
+    if not bool(cfg.get("app.heartbeat", True)):
+        return ""
+    last = float(db.get_setting("last_heartbeat") or 0)
+    if time.time() - last < 24 * 3600:
+        return ""
+    act = last_activity()
+    quiet_for = time.time() - max(act["clip_made"], act["posted"])
+    if quiet_for < 24 * 3600:
+        db.set_setting("last_heartbeat", time.time())  # it is working; reset the clock and stay quiet
+        return ""
+    why = why_quiet()
+    db.set_setting("last_heartbeat", time.time())
+    if not why:
+        return ""
+    notify.send_text("🤔 <b>Nothing posted in the last day.</b>\n" + notify._esc(why) +
+                     f"\n\n{base_url()}/autopilot")
+    return why
+
+
 def _loop():
-    last_check = 0.0
     while True:
         try:
             st = get_settings()
+            last_check = float(db.get_setting("last_channel_check") or 0)
             if st.get("enabled") and time.time() - last_check > float(st.get("check_minutes", 60)) * 60:
                 check_channel_once()
-                last_check = time.time()
+                # written down, not kept in a variable: otherwise nobody can tell whether it ever ran
+                db.set_setting("last_channel_check", time.time())
             backfill_once()
             run_due_posts()
+            heartbeat()
         except Exception as e:  # noqa: BLE001
             db.log_error("autopilot", str(e))
         time.sleep(60)
