@@ -41,12 +41,12 @@ def test_a_vertical_video_right_on_the_line(episodes):
     # for being far too brief to be an episode, which is the other rule doing its job
     peek_as(episodes, duration=autopilot.MAX_SHORT_SECONDS + 1, width=1080, height=1920, vertical=True)
     why = autopilot.episode_problem("https://youtu.be/x")
-    assert "Short" not in why and "only 4 minutes" in why
+    assert "Short" not in why and "only 4.0 minutes" in why
 
 
 def test_a_short_landscape_clip_is_still_too_brief_to_be_an_episode(episodes):
     peek_as(episodes, duration=5 * 60, width=1920, height=1080, vertical=False)
-    assert "only 5 minutes long" in autopilot.episode_problem("https://youtu.be/x")
+    assert "only 5.0 minutes long" in autopilot.episode_problem("https://youtu.be/x")
 
 
 def test_a_vertical_video_of_unknown_length_is_not_refused(episodes):

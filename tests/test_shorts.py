@@ -53,7 +53,7 @@ def test_a_vertical_video_is_refused_however_it_is_titled(quiet, monkeypatch):
 def test_a_video_shorter_than_an_episode_is_refused(quiet, monkeypatch):
     peek_as(monkeypatch, duration=4 * 60, width=1920, height=1080, vertical=False)
     why = autopilot.episode_problem("https://youtu.be/x")
-    assert "4 minutes" in why
+    assert "4.0 minutes" in why
 
 
 def test_a_real_episode_passes(quiet, monkeypatch):

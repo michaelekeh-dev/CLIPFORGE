@@ -75,6 +75,18 @@ def run_project(pid: str, progress) -> None:
                                 "duration": float(info.get("duration") or 0), "source_path": str(src),
                                 "thumbnail": str(thumb) if thumb.exists() else "", "info": info})
 
+    # THE ONE CHECK THAT CANNOT BE FOOLED: the file is here, so measure it. YouTube's metadata can be
+    # missing or refused, and a Short that slips past the page check is caught here — before the hour
+    # of transcribing and rendering, not after.
+    if opts.get("autopilot"):
+        from . import autopilot as _ap
+        secs = float(info.get("duration") or 0) or float(media.probe(src).get("duration") or 0)
+        why = _ap.too_short_to_clip(secs)
+        if why:
+            progress("Not an episode", 100)
+            _ap.reject_as_short(pid, why)
+            return
+
     # 2. transcript
     progress("Transcribing", 20)
     tr = transcribe.transcribe(src, pdir, progress, start=opts.get("start"), end=opts.get("end"))

@@ -285,19 +285,51 @@ def episode_problem(url: str, title: str = "") -> str:
     video. Clipping one just burns an hour of CPU to put our subtitles over someone else's edit."""
     st = get_settings()
     info = download.peek(url)
-    if not info:
-        return ""  # cannot tell without downloading it; let the normal flow decide
-    secs = float(info.get("duration") or 0)
+    secs = float((info or {}).get("duration") or 0)
     mins = secs / 60
     low = float(st.get("min_episode_minutes", 15) or 0)
+    if not info or not secs:
+        # YouTube would not say how long it is. That is NOT a pass: it is downloaded and measured for
+        # real before anything is clipped (pipeline.run_project), so a Short cannot slip through here.
+        return ""
     # A Short is vertical AND brief. Tall on its own is not enough: an episode filmed or posted
     # vertically is still an episode, and judging on shape alone threw a real one away.
-    if info.get("vertical") and secs and secs <= MAX_SHORT_SECONDS:
+    if info.get("vertical") and secs <= MAX_SHORT_SECONDS:
         return (f"it is a {secs:.0f} second vertical video ({info.get('width')}x{info.get('height')}) — "
                 "that is a Short, not an episode")
-    if low and mins and mins < low:
-        return f"it is only {mins:.0f} minutes long, and an episode is at least {low:.0f}"
+    if low and mins < low:
+        return f"it is only {mins:.1f} minutes long, and an episode is at least {low:.0f}"
     return ""
+
+
+def too_short_to_clip(seconds: float) -> str:
+    """The one rule that decides it, used on the real file once it is downloaded."""
+    low = float(get_settings().get("min_episode_minutes", 15) or 0)
+    mins = float(seconds or 0) / 60
+    if not low:
+        return ""
+    if not seconds:
+        return "its length could not be read at all"
+    if mins < low:
+        return f"it is {mins:.1f} minutes long and an episode is at least {low:.0f}"
+    return ""
+
+
+def reject_as_short(pid: str, why: str):
+    """Stop an autopilot project that turned out to be a Short, and remember never to take it again."""
+    from . import pipeline
+    proj = db.row("SELECT * FROM projects WHERE id=?", (pid,)) or {}
+    vid = db.row("SELECT video_id FROM seen_videos WHERE project_id=?", (pid,))
+    if vid:
+        db.execute("UPDATE seen_videos SET project_id='short' WHERE video_id=?", (vid["video_id"],))
+    db.update("projects", pid, {"status": "skipped", "stage": "Not an episode", "error": why, "progress": 100})
+    try:
+        pipeline.drop_source(pid)
+    except Exception as e:  # noqa: BLE001
+        db.log_error("storage", str(e))
+    db.log_error("autopilot", f"not an episode: {(proj.get('title') or pid)[:60]} — {why}")
+    notify.send_text(f"⏭ Skipped <b>{notify._esc((proj.get('title') or pid)[:60])}</b>: {notify._esc(why)}. "
+                     "Only long-form episodes get clipped.")
 
 
 # ----------------------------------------------------------------------------- when a project finishes
@@ -372,6 +404,7 @@ def backfill_once(force: bool = False) -> str | None:
             db.log_error("autopilot", f"backfill feed: {str(e)[:200]}")
     nxt = None
     for v in pool:
+        v = {**v, "url": v.get("url") or f"https://www.youtube.com/watch?v={v['video_id']}"}
         if _looks_like_short(v):
             db.execute("UPDATE seen_videos SET project_id='short' WHERE video_id=?", (v["video_id"],))
             continue
