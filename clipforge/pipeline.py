@@ -80,11 +80,20 @@ def run_project(pid: str, progress) -> None:
     # of transcribing and rendering, not after.
     if opts.get("autopilot"):
         from . import autopilot as _ap
+        from . import sourcecheck
         secs = float(info.get("duration") or 0) or float(media.probe(src).get("duration") or 0)
         why = _ap.too_short_to_clip(secs)
+        if not why:
+            # and is it raw footage? a video that already carries subtitles is somebody's finished edit,
+            # and clipping it lands our captions on top of theirs
+            progress("Checking the source", 12)
+            try:
+                why = sourcecheck.problem(str(src))
+            except Exception as e:  # noqa: BLE001
+                db.log_error("sourcecheck", str(e))
         if why:
             progress("Not an episode", 100)
-            _ap.reject_as_short(pid, why)
+            _ap.reject_source(pid, why)
             return
 
     # 2. transcript

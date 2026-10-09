@@ -315,8 +315,8 @@ def too_short_to_clip(seconds: float) -> str:
     return ""
 
 
-def reject_as_short(pid: str, why: str):
-    """Stop an autopilot project that turned out to be a Short, and remember never to take it again."""
+def reject_source(pid: str, why: str):
+    """Stop an autopilot project whose source is not a raw episode, and never take that video again."""
     from . import pipeline
     proj = db.row("SELECT * FROM projects WHERE id=?", (pid,)) or {}
     vid = db.row("SELECT video_id FROM seen_videos WHERE project_id=?", (pid,))
@@ -329,7 +329,11 @@ def reject_as_short(pid: str, why: str):
         db.log_error("storage", str(e))
     db.log_error("autopilot", f"not an episode: {(proj.get('title') or pid)[:60]} — {why}")
     notify.send_text(f"⏭ Skipped <b>{notify._esc((proj.get('title') or pid)[:60])}</b>: {notify._esc(why)}. "
-                     "Only long-form episodes get clipped.")
+                     "Only raw full episodes get clipped.")
+
+
+# the old name, kept so nothing that calls it breaks
+reject_as_short = reject_source
 
 
 # ----------------------------------------------------------------------------- when a project finishes

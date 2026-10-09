@@ -37,6 +37,15 @@ transcribe:
   parakeet_url: https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-nemo-parakeet-tdt-0.6b-v2-int8.tar.bz2
   chunk_seconds: 30
 
+source:
+  # Refuse a video that already has subtitles burned into the picture: that is somebody's finished
+  # edit, not raw footage, and clipping it puts our captions on top of theirs
+  refuse_edited: true
+  # text must be on screen in this share of the frames looked at...
+  caption_share: 0.5
+  # ...and must CHANGE this much between them, which is what tells captions from a logo
+  caption_change: 0.35
+
 storage:
   # Keep only the episode being worked on: older source videos, working files and the files of clips
   # already posted or skipped are cleared to make room. Clips still waiting to post are never touched.
