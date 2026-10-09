@@ -431,6 +431,30 @@ def waiting_clips() -> list[dict]:
                    "ORDER BY created_at")
 
 
+def purge_short_sourced_clips() -> tuple[int, int]:
+    """Throw out clips whose source video was never an episode. Returns (removed, kept).
+
+    Clips made before the length rule existed keep arriving in Telegram no matter what the rule says
+    now, because they are already rendered. This clears them out by the one fact that settles it:
+    how long the video they were cut from actually was."""
+    from . import pipeline
+    low = float(get_settings().get("min_episode_minutes", 15) or 0)
+    removed = kept = 0
+    for c in db.rows("SELECT c.id AS id, c.path AS path, p.duration AS dur FROM clips c "
+                     "JOIN projects p ON p.id = c.project_id WHERE c.status='done'"):
+        secs = float(c["dur"] or 0)
+        if secs and secs / 60 >= low:
+            kept += 1
+            continue
+        if not secs:
+            kept += 1       # unknown source length: leave it rather than throw away a real episode
+            continue
+        skip_clip(c["id"])
+        pipeline._unlink_ours(c.get("path") or "")
+        removed += 1
+    return removed, kept
+
+
 def clear_waiting_clips() -> int:
     """Skip every clip still waiting for a decision, and free the disk they were holding."""
     from . import pipeline

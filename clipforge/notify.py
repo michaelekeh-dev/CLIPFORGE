@@ -98,6 +98,13 @@ def clip_caption(clip: dict, post: dict | None, base_url: str) -> str:
         lines.append(_esc(fc["summary"])[:240])
     if fc.get("red_flags"):
         lines.append("⚠️ " + _esc("; ".join(fc["red_flags"])[:240]))
+    proj = db.row("SELECT title, duration FROM projects WHERE id=?", (clip.get("project_id"),)) or {}
+    if proj:
+        src_min = float(proj.get("duration") or 0) / 60
+        # the source's own length, so a clip taken from a Short can never be mistaken for an episode's
+        mark = "🎬" if src_min >= 15 else "⚠️"
+        lines.append(f"{mark} from {_esc((proj.get('title') or '')[:50])} · "
+                     + (f"{src_min:.0f} min source" if src_min >= 1 else f"{src_min * 60:.0f}s source — NOT an episode"))
     if d.get("review"):
         from . import review as _review
         rl = _review.line(d["review"])
@@ -226,6 +233,10 @@ def handle_update(u: dict, base_url: str):
             send_text("Linked. Every finished clip lands here with its title, its description and buttons: Post now, Schedule, edit the title or the description, or Skip.\nCommands: /status, /why (if it ever goes quiet), /stats, /post <link>, /pause, /resume", chat)
         elif text.startswith("/status"):
             send_text(autopilot.status_text(), chat)
+        elif text.startswith("/purge"):
+            n, kept = autopilot.purge_short_sourced_clips()
+            send_text(f"Removed {n} clip{'s' if n != 1 else ''} that came from videos too short to be episodes."
+                      + (f" {kept} clips from real episodes were kept." if kept else ""), chat)
         elif text.startswith("/skipall"):
             n = autopilot.clear_waiting_clips()
             send_text(f"Skipped {n} clip{'s' if n != 1 else ''} that were waiting for a decision, and freed the "
