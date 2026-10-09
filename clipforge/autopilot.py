@@ -54,44 +54,73 @@ def base_url() -> str:
 
 
 # ----------------------------------------------------------------------------- watcher
-def channel_feed(channel_url: str) -> list[dict]:
-    """Latest videos of a channel: [{id, title, url, published}] via the RSS feed (needs the channel id, resolved once)."""
+FEED_URL = "https://www.youtube.com/feeds/videos.xml?channel_id={}"
+
+
+def _read_feed(cid: str) -> tuple[int, list[dict]]:
+    """(status code, videos) for one channel id. A wrong id answers 404 with no entries."""
     import httpx
     import xml.etree.ElementTree as ET
-    cid = db.get_setting("channel_id:" + channel_url)
-    if cid and not valid_channel_id(cid):
-        db.log_error("autopilot", f"cached channel id {cid!r} is malformed ({len(cid)} characters, not 24) — resolving again")
-        db.execute("DELETE FROM settings WHERE key=?", ("channel_id:" + channel_url,))
-        cid = None
-    if not cid:
-        cid = resolve_channel_id(channel_url)
-        if cid:
-            db.set_setting("channel_id:" + channel_url, cid)
-    if not cid:
-        return []
-
-    def fetch(c):
-        return httpx.get(f"https://www.youtube.com/feeds/videos.xml?channel_id={c}", timeout=30,
-                         headers={"User-Agent": "Mozilla/5.0"})
-
-    r = fetch(cid)
-    if r.status_code == 404:
-        # YouTube does not know this channel: the id is wrong however well formed it looks
-        db.log_error("autopilot", f"feed 404 for channel id {cid} — forgetting it and resolving again")
-        db.execute("DELETE FROM settings WHERE key=?", ("channel_id:" + channel_url,))
-        again = resolve_channel_id(channel_url)
-        if not again or again == cid:
-            return []
-        db.set_setting("channel_id:" + channel_url, again)
-        r = fetch(again)
-    r.raise_for_status()
+    r = httpx.get(FEED_URL.format(cid), timeout=30, headers={"User-Agent": "Mozilla/5.0"})
+    if r.status_code != 200:
+        return r.status_code, []
     ns = {"a": "http://www.w3.org/2005/Atom", "yt": "http://www.youtube.com/xml/schemas/2015"}
     out = []
     for e in ET.fromstring(r.text).findall("a:entry", ns):
         vid = e.findtext("yt:videoId", "", ns)
         out.append({"id": vid, "title": e.findtext("a:title", "", ns), "url": f"https://www.youtube.com/watch?v={vid}",
                     "published": e.findtext("a:published", "", ns)})
-    return out
+    return 200, out
+
+
+def verified_channel_id(channel_url: str) -> tuple[str | None, list[dict], str]:
+    """The channel id whose feed actually answers, with that feed. (id, videos, what went wrong).
+
+    Scraping a page for an id is a guess: a consent page or a bit of boilerplate can hand back a
+    perfectly well-formed id belonging to somebody else, which then 404s forever. So every candidate
+    is tried against the real feed and only one that answers is kept."""
+    tried = []
+    for cid in channel_candidates(channel_url):
+        if cid in tried:
+            continue
+        tried.append(cid)
+        try:
+            code, vids = _read_feed(cid)
+        except Exception as e:  # noqa: BLE001
+            db.log_error("autopilot", f"feed {cid}: {str(e)[:150]}")
+            continue
+        if code == 200 and vids:
+            return cid, vids, ""
+        db.log_error("autopilot", f"channel id {cid} does not answer (HTTP {code}) — trying the next candidate")
+    if not tried:
+        return None, [], ("No channel id could be read from that link. Open the channel on YouTube and copy the "
+                          "address bar; a link with /channel/UC... in it always works.")
+    return None, [], ("Tried " + ", ".join(tried) + " and YouTube knows none of them. Copy the channel's link from "
+                      "the address bar on its page — a /channel/UC... link is the one that cannot be guessed wrong.")
+
+
+def channel_feed(channel_url: str) -> list[dict]:
+    """Latest videos of a channel. The id is resolved once, but only ever cached once it has answered."""
+    cid = db.get_setting("channel_id:" + channel_url)
+    if cid and valid_channel_id(cid):
+        try:
+            code, vids = _read_feed(cid)
+            if code == 200 and vids:
+                return vids
+            db.log_error("autopilot", f"cached channel id {cid} stopped answering (HTTP {code}) — resolving again")
+        except Exception as e:  # noqa: BLE001
+            db.log_error("autopilot", f"feed {cid}: {str(e)[:150]}")
+            return []
+    elif cid:
+        db.log_error("autopilot", f"cached channel id {cid!r} is malformed ({len(cid)} characters, not 24) — resolving again")
+    db.execute("DELETE FROM settings WHERE key=?", ("channel_id:" + channel_url,))
+    got, vids, why = verified_channel_id(channel_url)
+    if not got:
+        if why:
+            db.log_error("autopilot", "channel: " + why)
+        return []
+    db.set_setting("channel_id:" + channel_url, got)
+    return vids
 
 
 CHANNEL_ID = re.compile(r"^UC[A-Za-z0-9_-]{22}$")
@@ -102,17 +131,23 @@ def valid_channel_id(cid: str) -> bool:
     return bool(CHANNEL_ID.match((cid or "").strip()))
 
 
-def resolve_channel_id(channel_url: str) -> str | None:
-    """The UC... id behind a channel link. Tries the cheap ways first so a blocked yt-dlp is not the end of it."""
+def channel_candidates(channel_url: str) -> list[str]:
+    """Every id this link might mean, best guess first. The caller proves which one is real."""
     url = (channel_url or "").strip()
+    out = []
+
+    def add(c):
+        c = str(c or "").strip()
+        if valid_channel_id(c) and c not in out:
+            out.append(c)
+
     if not url:
-        return None
-    if valid_channel_id(url):
-        return url
+        return out
+    add(url)
     if "channel/" in url:
-        got = url.rstrip("/").split("channel/")[-1].split("/")[0]
-        return got if valid_channel_id(got) else None
-    # the channel page carries its own id, and a plain page fetch works where the API page is blocked
+        add(url.rstrip("/").split("channel/")[-1].split("/")[0])
+    # the channel page carries its own id — but so does every other channel linked from it, so collect
+    # them all in page order and let the feed decide which one is this channel's
     try:
         import httpx
         import re as _re
@@ -121,13 +156,11 @@ def resolve_channel_id(channel_url: str) -> str | None:
         r = httpx.get(url.rstrip("/"), timeout=30, follow_redirects=True,
                       headers={"User-Agent": "Mozilla/5.0", "Accept-Language": "en-US,en;q=0.9"},
                       **({"proxy": px} if px else {}))
-        # exactly 22 characters after UC, and a boundary after them: a loose {20,} once captured a
-        # truncated id, cached it, and every feed fetch 404'd from then on
         for pat in (r'"(?:channelId|externalId)"\s*:\s*"(UC[A-Za-z0-9_-]{22})"',
+                    r'"browseId"\s*:\s*"(UC[A-Za-z0-9_-]{22})"',
                     r'channel/(UC[A-Za-z0-9_-]{22})(?![A-Za-z0-9_-])'):
-            m = _re.search(pat, r.text)
-            if m and valid_channel_id(m.group(1)):
-                return m.group(1)
+            for m in _re.finditer(pat, r.text):
+                add(m.group(1))
     except Exception as e:  # noqa: BLE001
         db.log_error("autopilot", f"channel page: {str(e)[:200]}")
     try:
@@ -140,12 +173,16 @@ def resolve_channel_id(channel_url: str) -> str | None:
         with yt_dlp.YoutubeDL(opts) as ydl:
             info = ydl.extract_info(url.rstrip("/") + "/videos", download=False)
         for cand in (info.get("channel_id"), info.get("uploader_id"), info.get("id")):
-            if valid_channel_id(str(cand or "")):
-                return str(cand)
-        return None
+            add(cand)
     except Exception as e:  # noqa: BLE001
         db.log_error("autopilot", f"channel id: {str(e)[:200]}")
-        return None
+    return out
+
+
+def resolve_channel_id(channel_url: str) -> str | None:
+    """The id behind a channel link, proven against the feed before it is believed."""
+    cid, _, _ = verified_channel_id(channel_url)
+    return cid
 
 
 def channel_check(channel_url: str = "") -> dict:
@@ -237,6 +274,10 @@ def _looks_like_short(v: dict) -> bool:
     return "/shorts/" in (v.get("url") or "")
 
 
+# YouTube caps a Short at three minutes; the slack is for a long upload that is still one
+MAX_SHORT_SECONDS = 240
+
+
 def episode_problem(url: str, title: str = "") -> str:
     """Why this video is not an episode, or '' when it is one.
 
@@ -246,11 +287,14 @@ def episode_problem(url: str, title: str = "") -> str:
     info = download.peek(url)
     if not info:
         return ""  # cannot tell without downloading it; let the normal flow decide
-    mins = info.get("duration", 0) / 60
+    secs = float(info.get("duration") or 0)
+    mins = secs / 60
     low = float(st.get("min_episode_minutes", 15) or 0)
-    if info.get("vertical"):
-        return (f"it is already a vertical video ({info['width']}x{info['height']}) — that is a Short, "
-                "not an episode")
+    # A Short is vertical AND brief. Tall on its own is not enough: an episode filmed or posted
+    # vertically is still an episode, and judging on shape alone threw a real one away.
+    if info.get("vertical") and secs and secs <= MAX_SHORT_SECONDS:
+        return (f"it is a {secs:.0f} second vertical video ({info.get('width')}x{info.get('height')}) — "
+                "that is a Short, not an episode")
     if low and mins and mins < low:
         return f"it is only {mins:.0f} minutes long, and an episode is at least {low:.0f}"
     return ""
@@ -666,6 +710,13 @@ def fix_impossible_settings() -> list[str]:
     """Repair settings that cannot do what they were set for. Runs once on startup."""
     st = get_settings()
     fixed = []
+    # the old rule refused any vertical video, so real episodes posted tall were thrown away for good.
+    # hand every one of those verdicts back to be judged again by the rule that also reads the length.
+    if apply_once("reopen_shorts_verdicts", {}):
+        db.execute("UPDATE seen_videos SET project_id='' WHERE project_id='short'")
+        again = (db.row("SELECT COUNT(*) AS n FROM seen_videos WHERE project_id=''") or {}).get("n", 0)
+        fixed.append(f"re-opened videos skipped as Shorts by the old shape-only rule ({again} now up for a "
+                     "second look)")
     # the form used to cap this at 10, so the saved value is a limit of the old UI, not a choice.
     # raised once to 15, never lowered, and never touched again after that.
     want = max(15, int(st.get("clips", 0) or 0))

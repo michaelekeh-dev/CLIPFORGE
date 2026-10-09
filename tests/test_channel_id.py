@@ -22,14 +22,14 @@ def test_a_channel_id_is_exactly_uc_plus_22():
     assert not autopilot.valid_channel_id("nonsense")
 
 
-def test_a_channel_url_with_a_truncated_id_is_refused():
-    assert autopilot.resolve_channel_id(f"https://www.youtube.com/channel/{BAD}") is None
-    assert autopilot.resolve_channel_id(f"https://www.youtube.com/channel/{GOOD}") == GOOD
+def test_a_channel_url_with_a_truncated_id_is_never_offered_as_a_candidate():
+    assert autopilot.channel_candidates(f"https://www.youtube.com/channel/{BAD}") == []
+    assert autopilot.channel_candidates(f"https://www.youtube.com/channel/{GOOD}") == [GOOD]
 
 
-def test_a_bare_id_is_accepted_only_when_well_formed():
-    assert autopilot.resolve_channel_id(GOOD) == GOOD
-    assert autopilot.resolve_channel_id(BAD) is None
+def test_a_bare_id_is_offered_only_when_well_formed():
+    assert autopilot.channel_candidates(GOOD) == [GOOD]
+    assert autopilot.channel_candidates(BAD) == []
 
 
 def test_the_page_regex_will_not_capture_a_short_id(monkeypatch):
@@ -44,53 +44,17 @@ def test_a_malformed_cached_id_is_thrown_away(monkeypatch):
     db.init_db()
     db.set_setting("channel_id:" + URL, BAD)
     tried = []
-    monkeypatch.setattr(autopilot, "resolve_channel_id", lambda u: tried.append(u) or None)
+    monkeypatch.setattr(autopilot, "channel_candidates", lambda u: tried.append(u) or [])
     assert autopilot.channel_feed(URL) == []
     assert tried == [URL], "a bad cached id must trigger a fresh resolve"
     assert db.get_setting("channel_id:" + URL) is None, "and must not be left in the database"
 
 
-def test_a_feed_404_forgets_the_id_and_resolves_again(monkeypatch):
+def test_a_feed_404_is_never_cached(monkeypatch):
+    """Superseded in detail by test_channel_verify.py; kept here as the guard on the cache itself."""
     db.init_db()
-    db.set_setting("channel_id:" + URL, GOOD)
-
-    class Resp:
-        def __init__(self, code, text=""):
-            self.status_code, self.text = code, text
-
-        def raise_for_status(self):
-            if self.status_code >= 400:
-                raise RuntimeError(f"Client error '{self.status_code}'")
-
-    FEED = ('<feed xmlns="http://www.w3.org/2005/Atom" xmlns:yt="http://www.youtube.com/xml/schemas/2015">'
-            '<entry><yt:videoId>abc</yt:videoId><title>EP.300</title><published>2026-09-01</published></entry></feed>')
-    calls = []
-    import httpx
-    other = "UCzzzzzzzzzzzzzzzzzzzzzz"
-
-    def fake_get(url, **kw):
-        calls.append(url)
-        return Resp(404) if GOOD in url else Resp(200, FEED)
-
-    monkeypatch.setattr(httpx, "get", fake_get)
-    monkeypatch.setattr(autopilot, "resolve_channel_id", lambda u: other)
-    out = autopilot.channel_feed(URL)
-    assert len(calls) == 2, "it must retry once with a freshly resolved id"
-    assert out and out[0]["id"] == "abc"
-    assert db.get_setting("channel_id:" + URL) == other
-
-
-def test_a_404_that_resolves_to_the_same_id_gives_up_quietly(monkeypatch):
-    db.init_db()
-    db.set_setting("channel_id:" + URL, GOOD)
-
-    class Resp:
-        status_code, text = 404, ""
-
-        def raise_for_status(self):
-            raise RuntimeError("404")
-
-    import httpx
-    monkeypatch.setattr(httpx, "get", lambda url, **kw: Resp())
-    monkeypatch.setattr(autopilot, "resolve_channel_id", lambda u: GOOD)
-    assert autopilot.channel_feed(URL) == [], "no infinite retry loop"
+    db.execute("DELETE FROM settings WHERE key=?", ("channel_id:" + URL,))
+    monkeypatch.setattr(autopilot, "channel_candidates", lambda u: [GOOD])
+    monkeypatch.setattr(autopilot, "_read_feed", lambda c: (404, []))
+    assert autopilot.channel_feed(URL) == []
+    assert db.get_setting("channel_id:" + URL) is None
