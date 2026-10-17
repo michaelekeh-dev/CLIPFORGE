@@ -452,7 +452,7 @@ async def api_autopilot_save(request: Request, enabled: str = Form(""), channel_
                              clips: int = Form(5), length: str = Form("auto"), keywords: str = Form(""), mode: str = Form("ask"),
                              post_times: str = Form("11:00,18:00"), timezone: str = Form("Europe/London"), max_posts_per_day: int = Form(2),
                              description_footer: str = Form(""), public: str = Form("on"),
-                             backfill: str = Form(""), queue_days: int = Form(3)):
+                             backfill: str = Form(""), queue_days: int = Form(3), channel_id: str = Form("")):
     times = [t.strip() for t in post_times.split(",") if re_time(t.strip())]
     autopilot.save_settings({"enabled": enabled == "on", "channel_url": channel_url.strip(), "check_minutes": max(10, min(autopilot.MAX_CHECK_MINUTES, int(check_minutes))),
                              "clips": max(1, min(25, int(clips))), "length": length if length in ("auto", "short", "medium", "long") else "auto",
@@ -460,7 +460,8 @@ async def api_autopilot_save(request: Request, enabled: str = Form(""), channel_
                              "post_times": times or ["12:00"], "timezone": timezone.strip() or "Europe/London",
                              "max_posts_per_day": max(1, min(10, int(max_posts_per_day))), "description_footer": description_footer,
                              "public": public == "on", "backfill": backfill == "on",
-                             "queue_days": max(1, min(30, int(queue_days)))})
+                             "queue_days": max(1, min(30, int(queue_days))),
+                             "channel_id": channel_id.strip()})
     return RedirectResponse("/autopilot?msg=Saved", status_code=303)
 
 

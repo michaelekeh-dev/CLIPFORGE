@@ -11,6 +11,8 @@ from .config import cfg, env
 DEFAULTS = {
     "enabled": False,
     "channel_url": "https://www.youtube.com/@JumpersJump",
+    # paste the UC... id here to settle it for good: it is used as given, never guessed from a page
+    "channel_id": "",
     "check_minutes": 60,
     "clips": 15,
     "length": "auto",
@@ -55,48 +57,108 @@ def base_url() -> str:
 
 # ----------------------------------------------------------------------------- watcher
 FEED_URL = "https://www.youtube.com/feeds/videos.xml?channel_id={}"
+# "we could not ask", as distinct from YouTube answering that the channel is not there
+BLOCKED = 0
 
 
 def _read_feed(cid: str) -> tuple[int, list[dict]]:
-    """(status code, videos) for one channel id. A wrong id answers 404 with no entries."""
+    """(status, videos) for one channel id.
+
+    404 means YouTube does not have that channel. Anything else — 403, 429, a timeout — means we could
+    not ask, which is NOT the same thing and must never be reported as a wrong id. The request goes
+    through the same residential proxy the downloads use, because a datacenter IP gets refused.
+    """
     import httpx
     import xml.etree.ElementTree as ET
-    r = httpx.get(FEED_URL.format(cid), timeout=30, headers={"User-Agent": "Mozilla/5.0"})
-    if r.status_code != 200:
-        return r.status_code, []
-    ns = {"a": "http://www.w3.org/2005/Atom", "yt": "http://www.youtube.com/xml/schemas/2015"}
-    out = []
-    for e in ET.fromstring(r.text).findall("a:entry", ns):
-        vid = e.findtext("yt:videoId", "", ns)
-        out.append({"id": vid, "title": e.findtext("a:title", "", ns), "url": f"https://www.youtube.com/watch?v={vid}",
-                    "published": e.findtext("a:published", "", ns)})
-    return 200, out
+    from .download import proxy_url
+    url = FEED_URL.format(cid)
+    headers = {"User-Agent": "Mozilla/5.0", "Accept-Language": "en-US,en;q=0.9"}
+    px = proxy_url()
+    attempts = ([{"proxy": px}] if px else []) + [{}]
+    last = 0
+    for kw in attempts:
+        try:
+            r = httpx.get(url, timeout=30, headers=headers, **kw)
+        except Exception as e:  # noqa: BLE001
+            db.log_error("autopilot", f"feed {cid}: {str(e)[:120]}")
+            last = BLOCKED
+            continue
+        if r.status_code == 200:
+            ns = {"a": "http://www.w3.org/2005/Atom", "yt": "http://www.youtube.com/xml/schemas/2015"}
+            try:
+                root = ET.fromstring(r.text)
+            except ET.ParseError:
+                last = BLOCKED      # an error page, not the feed
+                continue
+            if root.tag != "{http://www.w3.org/2005/Atom}feed":
+                # a consent page is perfectly good XML, so parsing is not enough: it has to be a feed,
+                # or "no videos" would be read as a real answer about a real channel
+                last = BLOCKED
+                continue
+            out = []
+            for e in root.findall("a:entry", ns):
+                vid = e.findtext("yt:videoId", "", ns)
+                out.append({"id": vid, "title": e.findtext("a:title", "", ns),
+                            "url": f"https://www.youtube.com/watch?v={vid}",
+                            "published": e.findtext("a:published", "", ns)})
+            return 200, out
+        last = r.status_code
+        if r.status_code == 404:
+            return 404, []          # a real answer: this channel does not exist
+    return last or BLOCKED, []
 
 
 def verified_channel_id(channel_url: str) -> tuple[str | None, list[dict], str]:
     """The channel id whose feed actually answers, with that feed. (id, videos, what went wrong).
 
-    Scraping a page for an id is a guess: a consent page or a bit of boilerplate can hand back a
-    perfectly well-formed id belonging to somebody else, which then 404s forever. So every candidate
-    is tried against the real feed and only one that answers is kept."""
-    tried = []
+    Scraping a page for an id is a guess: a consent page can hand back well-formed ids belonging to
+    other channels. So candidates are tried against the real feed. But when the feed cannot be reached
+    at all, refusing is just as wrong as believing: an id you gave explicitly is taken at its word
+    rather than being thrown away over a network that is down."""
+    tried, unknown, unreachable = [], [], []
+    explicit = explicit_channel_id(channel_url)
     for cid in channel_candidates(channel_url):
         if cid in tried:
             continue
         tried.append(cid)
-        try:
-            code, vids = _read_feed(cid)
-        except Exception as e:  # noqa: BLE001
-            db.log_error("autopilot", f"feed {cid}: {str(e)[:150]}")
-            continue
+        code, vids = _read_feed(cid)
         if code == 200 and vids:
             return cid, vids, ""
-        db.log_error("autopilot", f"channel id {cid} does not answer (HTTP {code}) — trying the next candidate")
+        if code == 404:
+            unknown.append(cid)
+            db.log_error("autopilot", f"channel id {cid} does not exist — trying the next candidate")
+        else:
+            unreachable.append(cid)
+            db.log_error("autopilot", f"could not reach the feed for {cid} (HTTP {code or 'no answer'})")
+    if explicit and explicit in unreachable:
+        # you told us which channel it is and YouTube never said otherwise: believe you
+        db.log_error("autopilot", f"keeping the channel id you gave ({explicit}): the feed could not be reached")
+        return explicit, [], ""
     if not tried:
         return None, [], ("No channel id could be read from that link. Open the channel on YouTube and copy the "
                           "address bar; a link with /channel/UC... in it always works.")
-    return None, [], ("Tried " + ", ".join(tried) + " and YouTube knows none of them. Copy the channel's link from "
-                      "the address bar on its page — a /channel/UC... link is the one that cannot be guessed wrong.")
+    if unknown and not unreachable:
+        return None, [], ("Tried " + ", ".join(unknown) + " and YouTube says none of those channels exist. "
+                          "Copy the channel's link from the address bar on its page — a /channel/UC... link is "
+                          "the one that cannot be guessed wrong.")
+    return None, [], ("Could not reach YouTube's feed for " + ", ".join(unreachable or tried) + ". That is a "
+                      "connection problem here, not a wrong channel — check the proxy on the Status page. "
+                      "Paste the /channel/UC... link and it will be used as given.")
+
+
+def explicit_channel_id(channel_url: str) -> str:
+    """The id you supplied yourself, rather than one scraped off a page."""
+    told = str(get_settings().get("channel_id") or "").strip()
+    if valid_channel_id(told):
+        return told
+    url = (channel_url or "").strip()
+    if valid_channel_id(url):
+        return url
+    if "channel/" in url:
+        got = url.rstrip("/").split("channel/")[-1].split("/")[0]
+        if valid_channel_id(got):
+            return got
+    return ""
 
 
 def channel_feed(channel_url: str) -> list[dict]:
@@ -135,12 +197,15 @@ def channel_candidates(channel_url: str) -> list[str]:
     """Every id this link might mean, best guess first. The caller proves which one is real."""
     url = (channel_url or "").strip()
     out = []
+    told = str(get_settings().get("channel_id") or "").strip()
 
     def add(c):
         c = str(c or "").strip()
         if valid_channel_id(c) and c not in out:
             out.append(c)
 
+    if told:
+        add(told)       # what you typed in comes first, always
     if not url:
         return out
     add(url)
