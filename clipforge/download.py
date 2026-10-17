@@ -296,6 +296,8 @@ def peek(url: str) -> dict:
     w, h = info.get("width") or 0, info.get("height") or 0
     return {"id": info.get("id", ""), "title": info.get("title", ""), "duration": float(info.get("duration") or 0),
             "width": w, "height": h, "vertical": bool(w and h and h > w),
+            # who posted it: this is how a channel is identified from any one of its videos
+            "channel_id": info.get("channel_id") or "", "channel": info.get("channel") or info.get("uploader") or "",
             "url": info.get("webpage_url") or url}
 
 

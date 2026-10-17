@@ -26,7 +26,7 @@
   <form method="post" action="/api/autopilot">
     <div class="grid ap-grid">
       <label class="check span2"><input type="checkbox" name="enabled" {% if st.enabled %}checked{% endif %}> Autopilot on (check the channel and clip new episodes by itself)</label>
-      <label class="span2">Channel to watch<input class="input" name="channel_url" value="{{ st.channel_url }}" placeholder="https://www.youtube.com/@JumpersJump"></label>
+      <label class="span2">Channel to watch<input class="input" name="channel_url" value="{{ st.channel_url }}" placeholder="channel link, or a link to any video on it"></label>
       <label class="span2">Channel ID (optional — ends the guessing)<input class="input" name="channel_id"
         value="{{ st.channel_id }}" placeholder="UC..." pattern="(UC[A-Za-z0-9_-]{22})?">
         <span class="muted small">Open the channel on YouTube, click any video, click the channel name, and copy the

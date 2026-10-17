@@ -233,6 +233,10 @@ def handle_update(u: dict, base_url: str):
             send_text("Linked. Every finished clip lands here with its title, its description and buttons: Post now, Schedule, edit the title or the description, or Skip.\nCommands: /status, /why (if it ever goes quiet), /stats, /post <link>, /pause, /resume", chat)
         elif text.startswith("/status"):
             send_text(autopilot.status_text(), chat)
+        elif text.startswith("/channel"):
+            link = text.replace("/channel", "", 1).strip()
+            out = autopilot.set_channel_from(link)
+            send_text(("✅ " if out.get("ok") else "🔴 ") + _esc(out.get("detail", "")), chat)
         elif text.startswith("/purge"):
             n, kept = autopilot.purge_short_sourced_clips()
             send_text(f"Removed {n} clip{'s' if n != 1 else ''} that came from videos too short to be episodes."

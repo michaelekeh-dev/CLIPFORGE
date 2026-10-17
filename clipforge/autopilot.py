@@ -158,6 +158,8 @@ def explicit_channel_id(channel_url: str) -> str:
         got = url.rstrip("/").split("channel/")[-1].split("/")[0]
         if valid_channel_id(got):
             return got
+    if looks_like_video(url):
+        return (channel_from_video(url) or {}).get("channel_id", "")
     return ""
 
 
@@ -193,6 +195,22 @@ def valid_channel_id(cid: str) -> bool:
     return bool(CHANNEL_ID.match((cid or "").strip()))
 
 
+VIDEO_LINK = re.compile(r"(?:youtu\.be/|[?&]v=|/shorts/|/live/|/embed/)([A-Za-z0-9_-]{11})")
+
+
+def looks_like_video(url: str) -> bool:
+    return bool(VIDEO_LINK.search(url or ""))
+
+
+def channel_from_video(url: str) -> dict:
+    """Which channel posted this video. Any video of theirs will do, which beats hunting for a UC id."""
+    info = download.peek(url)
+    cid = str((info or {}).get("channel_id") or "")
+    if not valid_channel_id(cid):
+        return {}
+    return {"channel_id": cid, "channel": info.get("channel", ""), "title": info.get("title", "")}
+
+
 def channel_candidates(channel_url: str) -> list[str]:
     """Every id this link might mean, best guess first. The caller proves which one is real."""
     url = (channel_url or "").strip()
@@ -209,6 +227,10 @@ def channel_candidates(channel_url: str) -> list[str]:
     if not url:
         return out
     add(url)
+    if looks_like_video(url):
+        # a link to one of the channel's videos: ask YouTube who posted it, through the proxy
+        add((channel_from_video(url) or {}).get("channel_id"))
+        return out
     if "channel/" in url:
         add(url.rstrip("/").split("channel/")[-1].split("/")[0])
     # the channel page carries its own id — but so does every other channel linked from it, so collect
@@ -248,6 +270,28 @@ def resolve_channel_id(channel_url: str) -> str | None:
     """The id behind a channel link, proven against the feed before it is believed."""
     cid, _, _ = verified_channel_id(channel_url)
     return cid
+
+
+def set_channel_from(link: str) -> dict:
+    """Point the watcher at whatever channel this link belongs to. Accepts a channel link or any video."""
+    link = (link or "").strip()
+    if not link:
+        return {"ok": False, "detail": "Send me a link to the channel, or to any video on it."}
+    if looks_like_video(link):
+        got = channel_from_video(link)
+        if not got:
+            return {"ok": False, "detail": "Could not read that video — check the proxy on the Status page."}
+        save_settings({"channel_id": got["channel_id"],
+                       "channel_url": f"https://www.youtube.com/channel/{got['channel_id']}"})
+        db.execute("DELETE FROM settings WHERE key LIKE 'channel_id:%'")
+        return {"ok": True, "channel": got.get("channel", ""), "channel_id": got["channel_id"],
+                "detail": f"Watching {got.get('channel') or got['channel_id']} ({got['channel_id']})."}
+    cid = explicit_channel_id(link) or resolve_channel_id(link)
+    if not cid:
+        return {"ok": False, "detail": "Could not work out which channel that is. Send a link to one of its videos."}
+    save_settings({"channel_id": cid, "channel_url": link})
+    db.execute("DELETE FROM settings WHERE key LIKE 'channel_id:%'")
+    return {"ok": True, "channel": "", "channel_id": cid, "detail": f"Watching {cid}."}
 
 
 def channel_check(channel_url: str = "") -> dict:
