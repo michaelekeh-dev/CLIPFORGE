@@ -272,6 +272,42 @@ def resolve_channel_id(channel_url: str) -> str | None:
     return cid
 
 
+def started_title(pid: str) -> str:
+    """What we just started clipping, by whichever name we actually have for it."""
+    row = db.row("SELECT title FROM projects WHERE id=?", (pid,)) or {}
+    if row.get("title"):
+        return str(row["title"])[:60]
+    seen = db.row("SELECT title FROM seen_videos WHERE project_id=?", (pid,)) or {}
+    return (str(seen.get("title") or "") or pid)[:60]
+
+
+def start_watching_now() -> dict:
+    """Look at the channel this second and get something moving, instead of waiting for the next tick.
+
+    Changing the channel used to save the setting and stop there, so nothing happened for up to an
+    hour — and if every recent video was already marked seen, nothing happened at all."""
+    st = get_settings()
+    if not st.get("enabled"):
+        return {"started": 0, "note": "Autopilot is switched off, so nothing will be clipped until you turn it on."}
+    db.execute("DELETE FROM settings WHERE key='last_channel_check'")   # the loop re-checks on its next tick too
+    try:
+        started = check_channel_once()
+    except Exception as e:  # noqa: BLE001
+        db.log_error("autopilot", f"first check: {str(e)[:200]}")
+        return {"started": 0, "note": f"Could not read the channel just now: {str(e)[:120]}"}
+    if started:
+        return {"started": len(started),
+                "note": f"Clipping {len(started)} new episode{'s' if len(started) > 1 else ''} now."}
+    # backfill_once already widens the net itself: the feed first, then the uploads page
+    pid = backfill_once(force=True)
+    if pid:
+        return {"started": 1, "note": "Nothing new on the channel, so I'm clipping an older episode: "
+                                      + started_title(pid)}
+    left = len(backlog())
+    return {"started": 0, "note": ("Nothing new to clip, and every episode on the channel has been done already."
+                                   if not left else f"{left} episodes are lined up to clip when the queue runs low.")}
+
+
 def set_channel_from(link: str) -> dict:
     """Point the watcher at whatever channel this link belongs to. Accepts a channel link or any video."""
     link = (link or "").strip()
@@ -284,14 +320,18 @@ def set_channel_from(link: str) -> dict:
         save_settings({"channel_id": got["channel_id"],
                        "channel_url": f"https://www.youtube.com/channel/{got['channel_id']}"})
         db.execute("DELETE FROM settings WHERE key LIKE 'channel_id:%'")
-        return {"ok": True, "channel": got.get("channel", ""), "channel_id": got["channel_id"],
-                "detail": f"Watching {got.get('channel') or got['channel_id']} ({got['channel_id']})."}
+        now = start_watching_now()
+        return {"ok": True, "channel": got.get("channel", ""), "channel_id": got["channel_id"], **now,
+                "detail": f"Watching {got.get('channel') or got['channel_id']} ({got['channel_id']}).\n"
+                          + now["note"]}
     cid = explicit_channel_id(link) or resolve_channel_id(link)
     if not cid:
         return {"ok": False, "detail": "Could not work out which channel that is. Send a link to one of its videos."}
     save_settings({"channel_id": cid, "channel_url": link})
     db.execute("DELETE FROM settings WHERE key LIKE 'channel_id:%'")
-    return {"ok": True, "channel": "", "channel_id": cid, "detail": f"Watching {cid}."}
+    now = start_watching_now()
+    return {"ok": True, "channel": "", "channel_id": cid, **now,
+            "detail": f"Watching {cid}.\n" + now["note"]}
 
 
 def channel_check(channel_url: str = "") -> dict:
@@ -491,6 +531,59 @@ def backlog() -> list[dict]:
     return db.rows("SELECT * FROM seen_videos WHERE (project_id IS NULL OR project_id='') ORDER BY rowid")
 
 
+def channel_archive(channel_url: str = "", limit: int = 120) -> list[dict]:
+    """Further back than the RSS feed goes.
+
+    The feed carries only the latest 15 videos, so once those are done the back catalogue looks empty
+    even though the channel has hundreds. This lists the uploads page itself, through the proxy."""
+    url = (channel_url or get_settings().get("channel_url") or "").strip()
+    cid = str(get_settings().get("channel_id") or "").strip()
+    if valid_channel_id(cid):
+        url = f"https://www.youtube.com/channel/{cid}"
+    if not url:
+        return []
+    try:
+        import yt_dlp
+        from .download import _cookie_file, proxy_url, _js_opts
+        opts = {"quiet": True, "no_warnings": True, "skip_download": True, "extract_flat": "in_playlist",
+                "playlistend": int(limit), **_js_opts()}
+        ck = _cookie_file()
+        if ck:
+            opts["cookiefile"] = ck
+        px = proxy_url()
+        if px:
+            opts["proxy"] = px
+        with yt_dlp.YoutubeDL(opts) as ydl:
+            info = ydl.extract_info(url.rstrip("/") + "/videos", download=False)
+    except Exception as e:  # noqa: BLE001
+        db.log_error("autopilot", f"archive: {str(e)[:200]}")
+        return []
+    out = []
+    for e in (info or {}).get("entries") or []:
+        vid = e.get("id") or ""
+        if len(vid) != 11:
+            continue
+        out.append({"id": vid, "title": e.get("title") or "", "url": f"https://www.youtube.com/watch?v={vid}",
+                    "published": "", "duration": float(e.get("duration") or 0)})
+    return out
+
+
+def stock_backlog() -> int:
+    """Write down every episode of the channel we have never clipped, so there is always one to fall back on."""
+    added = 0
+    for v in channel_archive():
+        if db.row("SELECT 1 FROM seen_videos WHERE video_id=?", (v["id"],)):
+            continue
+        short = _looks_like_short(v) or (0 < v.get("duration", 0) <= MAX_SHORT_SECONDS)
+        db.insert("seen_videos", {"video_id": v["id"], "title": v["title"], "seen_at": time.time(),
+                                  "project_id": "short" if short else ""})
+        if not short:
+            added += 1
+    if added:
+        db.log_error("autopilot", f"back catalogue: {added} episodes added to the queue to clip")
+    return added
+
+
 def backfill_once(force: bool = False) -> str | None:
     """When the queue runs low, clip one more of the channel's older episodes. One at a time.
 
@@ -515,6 +608,9 @@ def backfill_once(force: bool = False) -> str | None:
             pool = backlog()
         except Exception as e:  # noqa: BLE001
             db.log_error("autopilot", f"backfill feed: {str(e)[:200]}")
+    if not pool:
+        stock_backlog()     # the feed's 15 are all done: go further back through the uploads page
+        pool = backlog()
     nxt = None
     for v in pool:
         v = {**v, "url": v.get("url") or f"https://www.youtube.com/watch?v={v['video_id']}"}
